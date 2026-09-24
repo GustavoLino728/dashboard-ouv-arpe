@@ -6,9 +6,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.base import Base
 
 
-CALL_CENTER_SUBASSUNTO = "Dificuldade de Atendimento pelo Call Center da Compesa"
+CALL_CENTER_SUBASSUNTO = "DIFICULDADE DE ATENDIMENTO PELO CALL CENTER COMPESA"
 DESCONSIDERAR_SUBASSUNTO = (
-    "INFORMAÇÕES TELEFONE/ENDEREÇO DA PRESTADORA DE SERVIÇO DE SANEAMENTO"
+    "INFORMAÇÕES TELEFONE/ ENDEREÇO DA PRESTADORA DE SERVIÇO DE SANEAMENTO"
 )
 
 

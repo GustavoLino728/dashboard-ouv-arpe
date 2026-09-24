@@ -11,7 +11,11 @@ import pandas as pd
 
 
 WORKSHEET_NAME = "Tablib Dataset"
-CALL_CENTER_SUBASSUNTO = "Dificuldade de Atendimento pelo Call Center da Compesa"
+CALL_CENTER_SUBASSUNTO = "DIFICULDADE DE ATENDIMENTO PELO CALL CENTER COMPESA"
+CALL_CENTER_SUBASSUNTO_ALIASES = {
+    "DIFICULDADE DE ATENDIMENTO PELO CALL CENTER COMPESA",
+    "DIFICULDADE DE ATENDIMENTO PELO CALL CENTER DA COMPESA",
+}
 DESCONSIDERAR_SUBASSUNTO = (
     "INFORMAÇÕES TELEFONE/ENDEREÇO DA PRESTADORA DE SERVIÇO DE SANEAMENTO"
 )
@@ -95,12 +99,14 @@ ALIASES = {
     "origem_atendimento": [
         "origem_atendimento",
         "origem atendimento",
+        "origem de atendimento",
         "origem do atendimento",
         "canal",
     ],
     "modalidade_atendimento": [
         "modalidade_atendimento",
         "modalidade atendimento",
+        "modalidade de atendimento",
         "modalidade",
     ],
     "tipo_atendimento": ["tipo_atendimento", "tipo atendimento", "tipo de atendimento"],
@@ -266,7 +272,8 @@ def read_excel_bytes(contents: bytes, filename: str) -> ParsedWorksheet:
 
 
 def is_call_center_subassunto(subassunto: str | None) -> bool:
-    return normalize_compare(subassunto) == normalize_compare(CALL_CENTER_SUBASSUNTO)
+    normalized = normalize_compare(subassunto)
+    return normalized in {normalize_compare(alias) for alias in CALL_CENTER_SUBASSUNTO_ALIASES}
 
 
 def is_desconsiderar_subassunto(subassunto: str | None) -> bool:
