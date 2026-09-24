@@ -42,6 +42,31 @@ async def delete_upload(upload_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.get("/manifestacoes", response_model=schemas.ManifestacoesResponse)
+async def manifestacoes(
+    page: int = 1,
+    page_size: int = 25,
+    ano: int | None = None,
+    ano_mes_inicio: str | None = None,
+    ano_mes_fim: str | None = None,
+    origem: str | None = None,
+    assunto: str | None = None,
+    subassunto: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    return await services.get_manifestacoes(
+        db,
+        page=page,
+        page_size=page_size,
+        ano=ano,
+        ano_mes_inicio=ano_mes_inicio,
+        ano_mes_fim=ano_mes_fim,
+        origem=origem,
+        assunto=assunto,
+        subassunto=subassunto,
+    )
+
+
 @router.get("/dashboard/kpis", response_model=schemas.DashboardKpis)
 async def kpis(
     ano: int | None = None,

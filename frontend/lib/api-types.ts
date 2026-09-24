@@ -79,3 +79,31 @@ export interface DeleteUploadResponse {
   upload_id: number;
   manifestacoes_removidas: number;
 }
+
+export interface ManifestacaoItem {
+  id_protocolo: string;
+  data_criacao: string;
+  data_prorrogacao: string | null;
+  data_conclusao: string | null;
+  ano_mes: string;
+  assunto: string;
+  subassunto: string;
+  orgao_origem: string | null;
+  origem_atendimento: string | null;
+  modalidade_atendimento: string | null;
+  tipo_atendimento: string | null;
+  situacao: string | null;
+  palavras_chave: string | null;
+  setores: string | null;
+  dias_para_conclusao: number | null;
+  nome_planilha: string | null;
+}
+
+export interface ManifestacoesResponse {
+  items: ManifestacaoItem[];
+  page: number;
+  page_size: number;
+  total_filtrado: number;
+  total_geral: number;
+  total_pages: number;
+}
