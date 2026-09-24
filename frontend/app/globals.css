@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  /* Light mode tokens */
+  --ink: #16283C;
+  --ink-soft: #5C7185;
+  --sidebar: #152A41;
+  --sidebar-hover: #1F3B57;
+  --teal: #1B7F79;
+  --bg: #EEF2F5;
+  --panel: #F7F8FA;
+  --line: #D5DBE1;
+  --panel-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --radius: 14px;
+
+  --background: var(--bg);
+  --foreground: var(--ink);
+}
+
+.dark, html[data-theme="dark"] {
+  /* Dark mode tokens */
+  --ink: #E8EAED;
+  --ink-soft: #8E9399;
+  --sidebar: #111214;
+  --sidebar-hover: #1C1E21;
+  --teal: #2CA39B;
+  --bg: #141618;
+  --panel: #1D1F23;
+  --line: #303236;
+  --panel-shadow: none;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-mono-kpi);
+  --font-display: var(--font-display);
+  --font-mono-kpi: var(--font-mono-kpi);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-teal: var(--teal);
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --radius-custom: var(--radius);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+[class*="bg-panel"] {
+  box-shadow: var(--panel-shadow);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
