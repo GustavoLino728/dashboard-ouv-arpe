@@ -48,6 +48,31 @@ async def ensure_upload_schema(db: AsyncSession) -> None:
     await db.execute(
         text("CREATE INDEX IF NOT EXISTS idx_fato_upload_id ON fato_manifestacoes (upload_id)")
     )
+    await db.execute(
+        text(
+            """
+            UPDATE dim_assunto
+            SET flag_dificuldade_call_center = TRUE
+            WHERE UPPER(subassunto) LIKE '%DIFICULDADE%'
+              AND UPPER(subassunto) LIKE '%ATENDIMENTO%'
+              AND UPPER(subassunto) LIKE '%CALL CENTER%'
+              AND UPPER(subassunto) LIKE '%COMPESA%'
+            """
+        )
+    )
+    await db.execute(
+        text(
+            """
+            UPDATE dim_assunto
+            SET flag_desconsiderar_regra_arpe = TRUE
+            WHERE UPPER(subassunto) LIKE '%INFORMA%'
+              AND UPPER(subassunto) LIKE '%TELEFONE%'
+              AND UPPER(subassunto) LIKE '%ENDERE%'
+              AND UPPER(subassunto) LIKE '%PRESTADORA%'
+              AND UPPER(subassunto) LIKE '%SANEAMENTO%'
+            """
+        )
+    )
 
 
 def _build_filters(
