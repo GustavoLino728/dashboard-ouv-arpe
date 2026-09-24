@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboard } from "@/components/DashboardProvider";
-import { BarChart3, X } from "lucide-react";
+import { BarChart3, Upload, X } from "lucide-react";
 
 const navItems = [
-  { name: "Ouvidoria", href: "/", icon: BarChart3 },
+  { name: "Dashboard", href: "/", icon: BarChart3 },
+  { name: "Planilhas", href: "/planilhas", icon: Upload },
 ];
 
 export function Sidebar() {

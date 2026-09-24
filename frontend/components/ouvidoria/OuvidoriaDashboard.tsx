@@ -20,22 +20,16 @@ import {
   ArrowUp,
   Headphones,
   RefreshCw,
-  Trash2,
-  Upload,
 } from "lucide-react";
 import {
-  deleteUpload,
   fetchOuvidoriaComparison,
   fetchOuvidoriaEvolution,
   fetchOuvidoriaFilters,
   fetchOuvidoriaKpis,
-  fetchUploads,
   OuvidoriaComparison,
   OuvidoriaEvolution,
   OuvidoriaFilters,
   OuvidoriaKpis,
-  UploadPlanilhaItem,
-  uploadPlanilha,
 } from "@/lib/api";
 
 type DashboardState = {
@@ -46,14 +40,6 @@ type DashboardState = {
 };
 
 const numberFmt = new Intl.NumberFormat("pt-BR");
-
-function suggestUploadName(fileName: string) {
-  return fileName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function KpiTile({
   label,
@@ -95,11 +81,6 @@ export function OuvidoriaDashboard() {
   const [anoMesFim, setAnoMesFim] = useState("2026-08");
   const [origem, setOrigem] = useState("todos");
   const [assunto, setAssunto] = useState("todos");
-  const [uploads, setUploads] = useState<UploadPlanilhaItem[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadName, setUploadName] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
   const query = useMemo(
     () => ({
@@ -129,59 +110,12 @@ export function OuvidoriaDashboard() {
     }
   }, [query]);
 
-  const loadUploads = useCallback(async () => {
-    try {
-      setUploads(await fetchUploads());
-    } catch {
-      setUploads([]);
-    }
-  }, []);
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadData();
-      void loadUploads();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loadData, loadUploads]);
-
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
-    setUploadMessage(null);
-    setUploadName(file ? suggestUploadName(file.name) : "");
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      setUploadMessage("Selecione uma planilha antes de enviar.");
-      return;
-    }
-
-    setUploading(true);
-    setUploadMessage(null);
-    try {
-      const result = await uploadPlanilha(selectedFile, uploadName);
-      setUploadMessage(`${numberFmt.format(result.registros_processados)} registros carregados.`);
-      setSelectedFile(null);
-      setUploadName("");
-      await Promise.all([loadUploads(), loadData()]);
-    } catch (err) {
-      setUploadMessage(err instanceof Error ? err.message : "Erro ao enviar planilha.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDeleteUpload = async (uploadId: number) => {
-    setUploadMessage(null);
-    try {
-      const result = await deleteUpload(uploadId);
-      setUploadMessage(`${numberFmt.format(result.manifestacoes_removidas)} registros removidos.`);
-      await Promise.all([loadUploads(), loadData()]);
-    } catch (err) {
-      setUploadMessage(err instanceof Error ? err.message : "Erro ao remover upload.");
-    }
-  };
+  }, [loadData]);
 
   const topTypologies = useMemo(() => {
     const totals = new Map<string, number>();
@@ -286,73 +220,6 @@ export function OuvidoriaDashboard() {
             ))}
           </select>
         </label>
-      </section>
-
-      <section className="grid grid-cols-[1.15fr_1fr] gap-5 max-xl:grid-cols-1">
-        <div className="bg-panel border border-line/30 rounded-custom p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Upload className="w-4 h-4 text-teal" />
-            <h2 className="text-[14px] font-semibold text-ink">Carga mensal de planilha</h2>
-          </div>
-          <div className="grid grid-cols-[1fr_1fr_auto] gap-3 max-lg:grid-cols-1">
-            <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
-              Arquivo
-              <input
-                type="file"
-                accept=".xlsx,.xls,.xlsm"
-                onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-                className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
-              Nome da planilha
-              <input
-                value={uploadName}
-                onChange={(event) => setUploadName(event.target.value)}
-                placeholder="Relatorio de Atendimento Agosto"
-                className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2"
-              />
-            </label>
-            <button
-              onClick={handleUpload}
-              disabled={uploading}
-              className="self-end flex items-center justify-center gap-2 text-[13px] font-semibold text-white bg-teal rounded-lg py-2 px-4 hover:bg-teal/90 disabled:opacity-60"
-            >
-              <Upload className="w-4 h-4" />
-              {uploading ? "Enviando" : "Enviar"}
-            </button>
-          </div>
-          {uploadMessage ? <p className="mt-3 text-[12px] text-ink-soft">{uploadMessage}</p> : null}
-        </div>
-
-        <div className="bg-panel border border-line/30 rounded-custom p-5">
-          <h2 className="text-[14px] font-semibold text-ink mb-4">Uploads registrados</h2>
-          <div className="max-h-[164px] overflow-auto pr-1">
-            {uploads.length === 0 ? (
-              <p className="text-[13px] text-ink-soft">Nenhuma planilha carregada.</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {uploads.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 rounded-lg border border-line/40 px-3 py-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold text-ink">{item.nome_planilha}</p>
-                      <p className="text-[11px] text-ink-soft">
-                        {item.competencia_ano_mes ?? "sem competencia"} - {numberFmt.format(item.quantidade_registros)} registros
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => void handleDeleteUpload(item.id)}
-                      className="grid h-8 w-8 place-items-center rounded-lg border border-line/50 text-red-600 hover:bg-red-50"
-                      title="Remover upload"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
       </section>
 
       <section className="grid grid-cols-4 gap-5 max-xl:grid-cols-2 max-sm:grid-cols-1">
