@@ -4,6 +4,7 @@ import {
   OuvidoriaFilters,
   OuvidoriaKpis,
   DeleteUploadResponse,
+  ManifestacoesResponse,
   UploadPlanilhaItem,
   UploadPlanilhaResponse,
 } from "./api-types";
@@ -113,4 +114,12 @@ export async function deleteUpload(uploadId: number): Promise<DeleteUploadRespon
   return apiFetch<DeleteUploadResponse>(`/api/v1/uploads/${uploadId}`, {
     method: "DELETE",
   });
+}
+
+export async function fetchManifestacoes(
+  filters: Record<string, string | number | undefined> = {}
+): Promise<ManifestacoesResponse> {
+  return apiFetch<ManifestacoesResponse>(
+    `/api/v1/manifestacoes${buildOuvidoriaQuery(filters)}`
+  );
 }

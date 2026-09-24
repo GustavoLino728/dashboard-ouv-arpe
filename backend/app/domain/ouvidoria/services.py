@@ -1,3 +1,4 @@
+from math import ceil
 from typing import Any
 
 import pandas as pd
@@ -323,6 +324,82 @@ async def delete_upload(db: AsyncSession, upload_id: int) -> dict[str, int]:
     return {
         "upload_id": upload_id,
         "manifestacoes_removidas": result.rowcount or 0,
+    }
+
+
+async def get_manifestacoes(
+    db: AsyncSession,
+    page: int = 1,
+    page_size: int = 25,
+    **filters: Any,
+) -> dict[str, Any]:
+    page = max(page, 1)
+    page_size = min(max(page_size, 10), 100)
+    offset = (page - 1) * page_size
+    where_sql, params = _build_filters(**filters)
+
+    total_geral_result = await db.execute(text("SELECT COUNT(*)::int FROM fato_manifestacoes"))
+    total_geral = total_geral_result.scalar_one()
+
+    total_filtrado_result = await db.execute(
+        text(
+            f"""
+            SELECT COUNT(*)::int
+            FROM fato_manifestacoes f
+            JOIN dim_data d ON d.sk_data = f.sk_data_criacao
+            JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
+            JOIN dim_origem o ON o.sk_origem = f.sk_origem
+            {where_sql}
+            """
+        ),
+        params,
+    )
+    total_filtrado = total_filtrado_result.scalar_one()
+
+    list_params = {**params, "limit": page_size, "offset": offset}
+    rows = await db.execute(
+        text(
+            f"""
+            SELECT
+                f.id_protocolo,
+                dc.data_completa AS data_criacao,
+                dp.data_completa AS data_prorrogacao,
+                dco.data_completa AS data_conclusao,
+                dc.ano_mes,
+                a.assunto,
+                a.subassunto,
+                o.orgao_origem,
+                o.origem_atendimento,
+                s.modalidade_atendimento,
+                s.tipo_atendimento,
+                s.situacao,
+                f.palavras_chave,
+                f.setores,
+                f.dias_para_conclusao,
+                u.nome_planilha
+            FROM fato_manifestacoes f
+            JOIN dim_data dc ON dc.sk_data = f.sk_data_criacao
+            JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
+            JOIN dim_origem o ON o.sk_origem = f.sk_origem
+            JOIN dim_status s ON s.sk_status = f.sk_status
+            LEFT JOIN dim_data dp ON dp.sk_data = f.sk_data_prorrogacao
+            LEFT JOIN dim_data dco ON dco.sk_data = f.sk_data_conclusao
+            LEFT JOIN uploads_planilhas u ON u.id = f.upload_id
+            {where_sql.replace("d.", "dc.")}
+            ORDER BY dc.data_completa DESC, f.id_protocolo DESC
+            LIMIT :limit OFFSET :offset
+            """
+        ),
+        list_params,
+    )
+
+    return {
+        "items": [dict(row) for row in rows.mappings().all()],
+        "page": page,
+        "page_size": page_size,
+        "total_filtrado": total_filtrado,
+        "total_geral": total_geral,
+        "total_pages": ceil(total_filtrado / page_size) if total_filtrado else 0,
     }
 
 

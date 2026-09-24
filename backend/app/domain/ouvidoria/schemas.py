@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -85,3 +85,31 @@ class UploadPlanilhaResponse(UploadPlanilhaItem):
 class DeleteUploadResponse(BaseModel):
     upload_id: int
     manifestacoes_removidas: int
+
+
+class ManifestacaoItem(BaseModel):
+    id_protocolo: str
+    data_criacao: date
+    data_prorrogacao: date | None
+    data_conclusao: date | None
+    ano_mes: str
+    assunto: str
+    subassunto: str
+    orgao_origem: str | None
+    origem_atendimento: str | None
+    modalidade_atendimento: str | None
+    tipo_atendimento: str | None
+    situacao: str | None
+    palavras_chave: str | None
+    setores: str | None
+    dias_para_conclusao: int | None
+    nome_planilha: str | None
+
+
+class ManifestacoesResponse(BaseModel):
+    items: list[ManifestacaoItem]
+    page: int
+    page_size: int
+    total_filtrado: int
+    total_geral: int
+    total_pages: int

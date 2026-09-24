@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboard } from "@/components/DashboardProvider";
-import { BarChart3, Upload, X } from "lucide-react";
+import { BarChart3, FileText, Upload, X } from "lucide-react";
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
+  { name: "Manifestações", href: "/manifestacoes", icon: FileText },
   { name: "Planilhas", href: "/planilhas", icon: Upload },
 ];
 
