@@ -208,12 +208,10 @@ def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         "situacao",
     ]:
         df[col] = df[col].fillna("Não informado")
-    df["dias_para_conclusao"] = df.apply(
-        lambda row: (row["data_conclusao"] - row["data_criacao"]).days
-        if row["data_conclusao"] and row["data_criacao"]
-        else None,
-        axis=1,
-    )
+    df["dias_para_conclusao"] = (
+        pd.to_datetime(df["data_conclusao"], errors="coerce")
+        - pd.to_datetime(df["data_criacao"], errors="coerce")
+    ).dt.days
     return df.drop_duplicates(subset=["id_protocolo"], keep="last")
 
 

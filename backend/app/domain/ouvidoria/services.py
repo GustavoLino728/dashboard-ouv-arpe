@@ -1,3 +1,4 @@
+import json
 from math import ceil
 from typing import Any
 
@@ -152,33 +153,49 @@ async def list_uploads(db: AsyncSession) -> list[UploadPlanilha]:
 
 
 async def _upsert_dim_data(db: AsyncSession, dates: set) -> None:
-    for value in sorted(dates):
-        await db.execute(
-            text(
-                """
-                INSERT INTO dim_data (sk_data, data_completa, ano, mes, nome_mes, ano_mes)
-                VALUES (:sk_data, :data_completa, :ano, :mes, :nome_mes, :ano_mes)
-                ON CONFLICT (sk_data) DO UPDATE SET
-                    data_completa = EXCLUDED.data_completa,
-                    ano = EXCLUDED.ano,
-                    mes = EXCLUDED.mes,
-                    nome_mes = EXCLUDED.nome_mes,
-                    ano_mes = EXCLUDED.ano_mes
-                """
-            ),
-            {
-                "sk_data": sk_from_date(value),
-                "data_completa": value,
-                "ano": value.year,
-                "mes": value.month,
-                "nome_mes": MONTHS_PT[value.month],
-                "ano_mes": value.strftime("%Y-%m"),
-            },
-        )
+    rows = [
+        {
+            "sk_data": sk_from_date(value),
+            "data_completa": value,
+            "ano": value.year,
+            "mes": value.month,
+            "nome_mes": MONTHS_PT[value.month],
+            "ano_mes": value.strftime("%Y-%m"),
+        }
+        for value in sorted(dates)
+    ]
+    if not rows:
+        return
+
+    await db.execute(
+        text(
+            """
+            INSERT INTO dim_data (sk_data, data_completa, ano, mes, nome_mes, ano_mes)
+            VALUES (:sk_data, :data_completa, :ano, :mes, :nome_mes, :ano_mes)
+            ON CONFLICT (sk_data) DO UPDATE SET
+                data_completa = EXCLUDED.data_completa,
+                ano = EXCLUDED.ano,
+                mes = EXCLUDED.mes,
+                nome_mes = EXCLUDED.nome_mes,
+                ano_mes = EXCLUDED.ano_mes
+            """
+        ),
+        rows,
+    )
 
 
 async def _upsert_dimensions(db: AsyncSession, df: pd.DataFrame):
-    for assunto, subassunto in df[["assunto", "subassunto"]].drop_duplicates().itertuples(index=False):
+    assunto_keys = list(df[["assunto", "subassunto"]].drop_duplicates().itertuples(index=False, name=None))
+    assunto_rows = [
+        {
+            "assunto": assunto,
+            "subassunto": subassunto,
+            "flag_call_center": is_call_center_subassunto(subassunto),
+            "flag_desconsiderar": is_desconsiderar_subassunto(subassunto),
+        }
+        for assunto, subassunto in assunto_keys
+    ]
+    if assunto_rows:
         await db.execute(
             text(
                 """
@@ -191,15 +208,12 @@ async def _upsert_dimensions(db: AsyncSession, df: pd.DataFrame):
                     flag_desconsiderar_regra_arpe = EXCLUDED.flag_desconsiderar_regra_arpe
                 """
             ),
-            {
-                "assunto": assunto,
-                "subassunto": subassunto,
-                "flag_call_center": is_call_center_subassunto(subassunto),
-                "flag_desconsiderar": is_desconsiderar_subassunto(subassunto),
-            },
+            assunto_rows,
         )
 
-    for orgao, origem in df[["orgao_origem", "origem_atendimento"]].drop_duplicates().itertuples(index=False):
+    origem_keys = list(df[["orgao_origem", "origem_atendimento"]].drop_duplicates().itertuples(index=False, name=None))
+    origem_rows = [{"orgao": orgao, "origem": origem} for orgao, origem in origem_keys]
+    if origem_rows:
         await db.execute(
             text(
                 """
@@ -208,11 +222,16 @@ async def _upsert_dimensions(db: AsyncSession, df: pd.DataFrame):
                 ON CONFLICT (orgao_origem, origem_atendimento) DO NOTHING
                 """
             ),
-            {"orgao": orgao, "origem": origem},
+            origem_rows,
         )
 
     status_cols = ["modalidade_atendimento", "tipo_atendimento", "situacao"]
-    for modalidade, tipo, situacao in df[status_cols].drop_duplicates().itertuples(index=False):
+    status_keys = list(df[status_cols].drop_duplicates().itertuples(index=False, name=None))
+    status_rows = [
+        {"modalidade": modalidade, "tipo": tipo, "situacao": situacao}
+        for modalidade, tipo, situacao in status_keys
+    ]
+    if status_rows:
         await db.execute(
             text(
                 """
@@ -221,58 +240,82 @@ async def _upsert_dimensions(db: AsyncSession, df: pd.DataFrame):
                 ON CONFLICT (modalidade_atendimento, tipo_atendimento, situacao) DO NOTHING
                 """
             ),
-            {"modalidade": modalidade, "tipo": tipo, "situacao": situacao},
+            status_rows,
         )
 
-    assunto_rows = await db.execute(text("SELECT sk_assunto, assunto, subassunto FROM dim_assunto"))
-    origem_rows = await db.execute(text("SELECT sk_origem, orgao_origem, origem_atendimento FROM dim_origem"))
-    status_rows = await db.execute(text("SELECT sk_status, modalidade_atendimento, tipo_atendimento, situacao FROM dim_status"))
+    assunto_filter = [
+        {"assunto": assunto, "subassunto": subassunto}
+        for assunto, subassunto in assunto_keys
+    ]
+    origem_filter = [
+        {"orgao": orgao, "origem": origem}
+        for orgao, origem in origem_keys
+    ]
+    status_filter = [
+        {"modalidade": modalidade, "tipo": tipo, "situacao": situacao}
+        for modalidade, tipo, situacao in status_keys
+    ]
+
+    assunto_result = await db.execute(
+        text(
+            """
+            SELECT sk_assunto, assunto, subassunto
+            FROM dim_assunto
+            WHERE (assunto, subassunto) IN (
+                SELECT assunto, subassunto
+                FROM jsonb_to_recordset(CAST(:items AS jsonb)) AS x(assunto text, subassunto text)
+            )
+            """
+        ),
+        {"items": json.dumps(assunto_filter)},
+    )
+    origem_result = await db.execute(
+        text(
+            """
+            SELECT sk_origem, orgao_origem, origem_atendimento
+            FROM dim_origem
+            WHERE (orgao_origem, origem_atendimento) IN (
+                SELECT orgao, origem
+                FROM jsonb_to_recordset(CAST(:items AS jsonb)) AS x(orgao text, origem text)
+            )
+            """
+        ),
+        {"items": json.dumps(origem_filter)},
+    )
+    status_result = await db.execute(
+        text(
+            """
+            SELECT sk_status, modalidade_atendimento, tipo_atendimento, situacao
+            FROM dim_status
+            WHERE (modalidade_atendimento, tipo_atendimento, situacao) IN (
+                SELECT modalidade, tipo, situacao
+                FROM jsonb_to_recordset(CAST(:items AS jsonb)) AS x(modalidade text, tipo text, situacao text)
+            )
+            """
+        ),
+        {"items": json.dumps(status_filter)},
+    )
 
     assunto_map = {
         (row.assunto, row.subassunto): row.sk_assunto
-        for row in assunto_rows.fetchall()
+        for row in assunto_result.fetchall()
     }
     origem_map = {
         (row.orgao_origem, row.origem_atendimento): row.sk_origem
-        for row in origem_rows.fetchall()
+        for row in origem_result.fetchall()
     }
     status_map = {
         (row.modalidade_atendimento, row.tipo_atendimento, row.situacao): row.sk_status
-        for row in status_rows.fetchall()
+        for row in status_result.fetchall()
     }
     return assunto_map, origem_map, status_map
 
 
 async def _upsert_facts(db: AsyncSession, df: pd.DataFrame, upload_id: int, assunto_map, origem_map, status_map) -> int:
-    count = 0
+    rows = []
     for row in df.itertuples(index=False):
-        await db.execute(
-            text(
-                """
-                INSERT INTO fato_manifestacoes (
-                    id_protocolo, sk_data_criacao, sk_data_prorrogacao, sk_data_conclusao,
-                    sk_assunto, sk_origem, sk_status, upload_id, palavras_chave, setores,
-                    dias_para_conclusao, qtd_manifestacoes
-                )
-                VALUES (
-                    :id_protocolo, :sk_data_criacao, :sk_data_prorrogacao, :sk_data_conclusao,
-                    :sk_assunto, :sk_origem, :sk_status, :upload_id, :palavras_chave, :setores,
-                    :dias_para_conclusao, 1
-                )
-                ON CONFLICT (id_protocolo) DO UPDATE SET
-                    sk_data_criacao = EXCLUDED.sk_data_criacao,
-                    sk_data_prorrogacao = EXCLUDED.sk_data_prorrogacao,
-                    sk_data_conclusao = EXCLUDED.sk_data_conclusao,
-                    sk_assunto = EXCLUDED.sk_assunto,
-                    sk_origem = EXCLUDED.sk_origem,
-                    sk_status = EXCLUDED.sk_status,
-                    upload_id = EXCLUDED.upload_id,
-                    palavras_chave = EXCLUDED.palavras_chave,
-                    setores = EXCLUDED.setores,
-                    dias_para_conclusao = EXCLUDED.dias_para_conclusao,
-                    qtd_manifestacoes = 1
-                """
-            ),
+        dias_para_conclusao = _none_if_nan(row.dias_para_conclusao)
+        rows.append(
             {
                 "id_protocolo": row.id_protocolo,
                 "sk_data_criacao": sk_from_date(row.data_criacao),
@@ -284,11 +327,43 @@ async def _upsert_facts(db: AsyncSession, df: pd.DataFrame, upload_id: int, assu
                 "upload_id": upload_id,
                 "palavras_chave": _none_if_nan(row.palavras_chave),
                 "setores": _none_if_nan(row.setores),
-                "dias_para_conclusao": _none_if_nan(row.dias_para_conclusao),
-            },
+                "dias_para_conclusao": int(dias_para_conclusao) if dias_para_conclusao is not None else None,
+            }
         )
-        count += 1
-    return count
+
+    if not rows:
+        return 0
+
+    await db.execute(
+        text(
+            """
+            INSERT INTO fato_manifestacoes (
+                id_protocolo, sk_data_criacao, sk_data_prorrogacao, sk_data_conclusao,
+                sk_assunto, sk_origem, sk_status, upload_id, palavras_chave, setores,
+                dias_para_conclusao, qtd_manifestacoes
+            )
+            VALUES (
+                :id_protocolo, :sk_data_criacao, :sk_data_prorrogacao, :sk_data_conclusao,
+                :sk_assunto, :sk_origem, :sk_status, :upload_id, :palavras_chave, :setores,
+                :dias_para_conclusao, 1
+            )
+            ON CONFLICT (id_protocolo) DO UPDATE SET
+                sk_data_criacao = EXCLUDED.sk_data_criacao,
+                sk_data_prorrogacao = EXCLUDED.sk_data_prorrogacao,
+                sk_data_conclusao = EXCLUDED.sk_data_conclusao,
+                sk_assunto = EXCLUDED.sk_assunto,
+                sk_origem = EXCLUDED.sk_origem,
+                sk_status = EXCLUDED.sk_status,
+                upload_id = EXCLUDED.upload_id,
+                palavras_chave = EXCLUDED.palavras_chave,
+                setores = EXCLUDED.setores,
+                dias_para_conclusao = EXCLUDED.dias_para_conclusao,
+                qtd_manifestacoes = 1
+            """
+        ),
+        rows,
+    )
+    return len(rows)
 
 
 async def upload_planilha(db: AsyncSession, contents: bytes, filename: str, nome_planilha: str | None = None) -> dict[str, Any]:
