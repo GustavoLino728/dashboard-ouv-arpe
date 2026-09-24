@@ -104,12 +104,6 @@ export function ManifestacoesTable() {
             Consulta tabular dos registros carregados com os mesmos filtros do dashboard
           </p>
         </div>
-        <button
-          onClick={loadData}
-          className="flex items-center gap-2 text-[13px] font-semibold text-white bg-teal rounded-lg py-2 px-4 hover:bg-teal/90"
-        >
-          <RefreshCw className="w-4 h-4" /> Atualizar
-        </button>
       </section>
 
       <section className="bg-panel border border-line/30 rounded-custom p-5">
