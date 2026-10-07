@@ -9,6 +9,7 @@ from app.core.exceptions import AppException
 from app.core.middleware import logging_middleware, register_middlewares
 from app.domain.ouvidoria.router import router as ouvidoria_router
 from app.domain.auth.router import router as auth_router
+from app.domain.users.router import router as users_router
 
 
 logging.basicConfig(
@@ -18,6 +19,7 @@ logging.basicConfig(
 
 TAGS_METADATA = [
     {"name": "Ouvidoria", "description": "Dashboard analitico de manifestacoes OUVE PE"},
+    {"name": "Users", "description": "Gerenciamento de usuarios"},
 ]
 
 
@@ -69,6 +71,7 @@ def create_app() -> FastAPI:
     app.middleware("http")(logging_middleware)
     app.include_router(ouvidoria_router)
     app.include_router(auth_router)
+    app.include_router(users_router)
 
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):

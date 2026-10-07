@@ -47,13 +47,23 @@ export class ApiError extends Error {
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
 
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("arpe-access-token")
+      : null;
+
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
   try {
     const res = await fetch(url, {
       ...init,
-      headers: {
-        ...(init?.headers ?? {}),
-      },
+      headers,
     });
+
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("api-unauthorized"));
+    }
 
     if (!res.ok) {
       let detail = res.statusText;
