@@ -8,7 +8,28 @@ import {
   UploadPlanilhaItem,
   UploadPlanilhaResponse,
 } from "./api-types";
-
+import {
+  ApiProject,
+  ApiProjectSimple,
+  ApiProjectSummary,
+  ApiPhaseStatus,
+  ApiSectorLoad,
+  ApiSectorStatus,
+  ApiCriticalActivity,
+  ApiTimelineEvent,
+  Atividade,
+  ApiUser,
+  ApiUserCreate,
+  ApiUserUpdate,
+  ApiCoordenadoria,
+  ApiCoordenadoriaCreate,
+  ApiCoordenadoriaUpdate,
+  ApiActivity,
+  ApiNotification,
+  ApiUnreadCount,
+  ContractLink,
+  ContractLinkUpsert,
+} from "./api-types";
 export * from "./api-types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
@@ -122,4 +143,64 @@ export async function fetchManifestacoes(
   return apiFetch<ManifestacoesResponse>(
     `/api/v1/manifestacoes${buildOuvidoriaQuery(filters)}`
   );
+}
+
+export async function fetchUsers(): Promise<ApiUser[]> {
+  return apiFetch<ApiUser[]>("/api/v1/users");
+}
+
+export async function createUser(data: ApiUserCreate): Promise<ApiUser> {
+  return apiFetch<ApiUser>("/api/v1/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateUser(
+  userId: string,
+  data: ApiUserUpdate
+): Promise<ApiUser> {
+  return apiFetch<ApiUser>(`/api/v1/users/${userId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  await apiFetch<void>(`/api/v1/users/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchCoordenadorias(): Promise<ApiCoordenadoria[]> {
+  return apiFetch<ApiCoordenadoria[]>("/api/v1/coordenadorias");
+}
+
+export async function createCoordenadoria(
+  data: ApiCoordenadoriaCreate
+): Promise<ApiCoordenadoria> {
+  return apiFetch<ApiCoordenadoria>("/api/v1/coordenadorias", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateCoordenadoria(
+  id: string,
+  data: ApiCoordenadoriaUpdate
+): Promise<ApiCoordenadoria> {
+  return apiFetch<ApiCoordenadoria>(`/api/v1/coordenadorias/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCoordenadoria(id: string): Promise<void> {
+  await apiFetch<void>(`/api/v1/coordenadorias/${id}`, {
+    method: "DELETE",
+  });
 }
