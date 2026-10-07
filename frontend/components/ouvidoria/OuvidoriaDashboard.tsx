@@ -109,8 +109,9 @@ export function OuvidoriaDashboard() {
   const [anoMesFim, setAnoMesFim] = useState("2026-08");
   const [origem, setOrigem] = useState("todos");
   const [assunto, setAssunto] = useState("todos");
+  const [subassuntoDestaque, setSubassuntoDestaque] = useState<string>("");
 
-  const query = useMemo(
+  const filtrosBase: FiltrosManifestacoes = useMemo(
     () => ({
       ano_mes_inicio: anoMesInicio,
       ano_mes_fim: anoMesFim,
@@ -118,6 +119,27 @@ export function OuvidoriaDashboard() {
       assunto,
     }),
     [anoMesInicio, anoMesFim, origem, assunto]
+  );
+
+  const subassuntoPadrao = useMemo(
+    () => resolverSubassuntoCallCenter(state.filters),
+    [state.filters]
+  );
+
+  const subassuntoDestaqueEfetivo = useMemo(
+    () => subassuntoDestaque || subassuntoPadrao || "",
+    [subassuntoDestaque, subassuntoPadrao]
+  );
+
+  const query = useMemo(
+    () => ({
+      ano_mes_inicio: anoMesInicio,
+      ano_mes_fim: anoMesFim,
+      origem,
+      assunto,
+      subassunto_destaque: subassuntoDestaqueEfetivo || undefined,
+    }),
+    [anoMesInicio, anoMesFim, origem, assunto, subassuntoDestaqueEfetivo]
   );
 
   const loadData = useCallback(async () => {
@@ -145,21 +167,16 @@ export function OuvidoriaDashboard() {
     return () => window.clearTimeout(timer);
   }, [loadData]);
 
-  const filtrosBase: FiltrosManifestacoes = useMemo(
-    () => ({
-      ano_mes_inicio: anoMesInicio,
-      ano_mes_fim: anoMesFim,
-      origem,
-      assunto,
-    }),
-    [anoMesInicio, anoMesFim, origem, assunto]
-  );
+  // Rótulo legível do destaque (preferência: o que o backend devolveu)
+  const rotuloDestaque = useMemo(() => {
+    if (state.kpis?.rotulo_destaque) return state.kpis.rotulo_destaque;
+    const item = state.filters?.subassuntos?.find(
+      (s) => s.value === subassuntoDestaqueEfetivo
+    );
+    return item?.label ?? "Call Center Compesa";
+  }, [state.kpis?.rotulo_destaque, state.filters, subassuntoDestaqueEfetivo]);
 
-  const subassuntoCallCenter = useMemo(
-    () => resolverSubassuntoCallCenter(state.filters),
-    [state.filters]
-  );
-
+  // Links para a tela de manifestações com filtros relevantes
   const hrefTotalPeriodo = useMemo(() => {
     const override = resolverFiltroKpi("total-periodo", { base: filtrosBase });
     return override ? buildManifestacoesUrl(filtrosBase, override) : null;
@@ -182,12 +199,13 @@ export function OuvidoriaDashboard() {
   }, [filtrosBase, state.kpis?.menor_mes?.ano_mes]);
 
   const hrefCallCenter = useMemo(() => {
+    if (!subassuntoDestaqueEfetivo) return null;
     const override = resolverFiltroKpi("call-center-compesa", {
       base: filtrosBase,
-      subassuntoCallCenter,
+      subassuntoCallCenter: subassuntoDestaqueEfetivo,
     });
     return override ? buildManifestacoesUrl(filtrosBase, override) : null;
-  }, [filtrosBase, subassuntoCallCenter]);
+  }, [filtrosBase, subassuntoDestaqueEfetivo]);
 
   const topTypologies = useMemo(() => {
     const totals = new Map<string, number>();
@@ -233,6 +251,7 @@ export function OuvidoriaDashboard() {
   const kpis = state.kpis;
   const comparison = state.comparison?.itens ?? [];
   const series = state.evolution?.series ?? [];
+
   if (error && !loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
@@ -292,6 +311,19 @@ export function OuvidoriaDashboard() {
             ))}
           </select>
         </label>
+        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
+          Subassunto destacado
+          <select
+            value={subassuntoDestaque}
+            onChange={(e) => setSubassuntoDestaque(e.target.value)}
+            className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2 max-w-[280px]"
+          >
+            <option value="">Padrão (Call Center Compesa)</option>
+            {(state.filters?.subassuntos ?? []).map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+        </label>
       </section>
 
       <section className="grid grid-cols-4 gap-5 max-xl:grid-cols-2 max-sm:grid-cols-1">
@@ -303,8 +335,8 @@ export function OuvidoriaDashboard() {
             <KpiTile label="Media mensal" value={numberFmt.format(kpis.media_mensal)} detail="Manifestacoes por mes" />
             <KpiTile label="Mes de pico" value={kpis.pico_mes?.ano_mes ?? "-"} detail={`${numberFmt.format(kpis.pico_mes?.total ?? 0)} registros`} tone="warn" href={hrefMesPico}/>
             <KpiTile label="Mes de menor volume" value={kpis.menor_mes?.ano_mes ?? "-"} detail={`${numberFmt.format(kpis.menor_mes?.total ?? 0)} registros`} tone="good" href={hrefMenorMes}/>
-            <KpiTile label="Call Center Compesa" value={numberFmt.format(kpis.total_call_center)} detail="Subassunto destacado" href={hrefCallCenter}/>
-            <KpiTile label="Participacao Call Center" value={`${kpis.participacao_call_center}%`} detail="Exclui telefone/endereco da prestadora" tone="danger" />
+            <KpiTile label={rotuloDestaque} value={numberFmt.format(kpis.total_call_center)} detail="Subassunto destacado" href={hrefCallCenter}/>
+            <KpiTile label={`Participacao ${rotuloDestaque}`} value={`${kpis.participacao_call_center}%`} detail="Exclui telefone/endereco da prestadora" tone="danger" />
             <KpiTile label="MoM ultimo mes" value={kpis.variacao_mom_ultimo_mes === null ? "-" : `${kpis.variacao_mom_ultimo_mes}%`} detail="Variacao contra mes anterior" />
             <KpiTile label="Base comparativa" value={numberFmt.format(state.comparison?.total_considerado ?? 0)} detail="Registros apos regra de exclusao" />
           </>
@@ -323,7 +355,7 @@ export function OuvidoriaDashboard() {
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
                 <Line type="monotone" dataKey="total" name="Total" stroke="#1B7F79" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="call_center" name="Call Center" stroke="#C4432D" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="call_center" name={rotuloDestaque} stroke="#C4432D" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -332,7 +364,7 @@ export function OuvidoriaDashboard() {
         <div className="bg-panel border border-line/30 rounded-custom p-6">
           <div className="flex items-center gap-2 mb-4">
             <Headphones className="w-4 h-4 text-teal" />
-            <h2 className="text-[14px] font-semibold text-ink">Comparativo Call Center</h2>
+            <h2 className="text-[14px] font-semibold text-ink">Comparativo {rotuloDestaque}</h2>
           </div>
           <div className="h-[310px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -343,7 +375,7 @@ export function OuvidoriaDashboard() {
                 <Tooltip contentStyle={tooltipStyle} />
                 <Bar dataKey="percentual" name="% do total considerado" radius={[0, 5, 5, 0]}>
                   {comparison.map((entry) => (
-                    <Cell key={entry.grupo} fill={entry.grupo.includes("Call Center") ? "#C4432D" : "#1B7F79"} />
+                    <Cell key={entry.grupo} fill={entry.eh_destaque ? "#C4432D" : "#1B7F79"} />
                   ))}
                 </Bar>
               </BarChart>

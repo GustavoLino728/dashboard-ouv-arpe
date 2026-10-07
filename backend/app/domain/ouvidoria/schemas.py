@@ -30,6 +30,7 @@ class DashboardKpis(BaseModel):
     variacao_mom_ultimo_mes: float | None
     total_call_center: int
     participacao_call_center: float
+    rotulo_destaque: str = "Call Center Compesa"
 
 
 class EvolutionPoint(BaseModel):
@@ -62,7 +63,7 @@ class CallCenterComparisonItem(BaseModel):
 class CallCenterComparisonResponse(BaseModel):
     total_considerado: int
     itens: list[CallCenterComparisonItem]
-
+    rotulo_destaque: str = "Call Center Compesa"
 
 class UploadPlanilhaItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)

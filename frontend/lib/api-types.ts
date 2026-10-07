@@ -25,6 +25,7 @@ export interface OuvidoriaKpis {
   variacao_mom_ultimo_mes: number | null;
   total_call_center: number;
   participacao_call_center: number;
+  rotulo_destaque: string;
 }
 
 export interface OuvidoriaEvolutionPoint {
@@ -52,11 +53,13 @@ export interface OuvidoriaComparisonItem {
   grupo: string;
   total: number;
   percentual: number;
+  eh_destaque: boolean;
 }
 
 export interface OuvidoriaComparison {
   total_considerado: number;
   itens: OuvidoriaComparisonItem[];
+  rotulo_destaque: string;
 }
 
 export interface UploadPlanilhaItem {

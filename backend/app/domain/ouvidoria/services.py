@@ -83,6 +83,7 @@ def _build_filters(
     origem: str | None = None,
     assunto: str | None = None,
     subassunto: str | None = None,
+    subassunto_destaque: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     clauses = []
     params: dict[str, Any] = {}
@@ -505,6 +506,14 @@ async def get_manifestacoes(
 
 async def get_monthly_series(db: AsyncSession, **filters: Any) -> list[dict[str, Any]]:
     where_sql, params = _build_filters(**filters)
+    destaque = filters.get("subassunto_destaque")
+
+    if destaque:
+        destaque_expr = "a.subassunto = :subassunto_destaque"
+        params["subassunto_destaque"] = destaque
+    else:
+        destaque_expr = "a.flag_dificuldade_call_center"
+
     result = await db.execute(
         text(
             f"""
@@ -512,8 +521,8 @@ async def get_monthly_series(db: AsyncSession, **filters: Any) -> list[dict[str,
                 SELECT
                     d.ano_mes,
                     SUM(f.qtd_manifestacoes)::int AS total,
-                    SUM(CASE WHEN a.flag_dificuldade_call_center THEN f.qtd_manifestacoes ELSE 0 END)::int AS call_center,
-                    SUM(CASE WHEN NOT a.flag_dificuldade_call_center THEN f.qtd_manifestacoes ELSE 0 END)::int AS demais_subassuntos
+                    SUM(CASE WHEN {destaque_expr} THEN f.qtd_manifestacoes ELSE 0 END)::int AS call_center,
+                    SUM(CASE WHEN NOT ({destaque_expr}) THEN f.qtd_manifestacoes ELSE 0 END)::int AS demais_subassuntos
                 FROM fato_manifestacoes f
                 JOIN dim_data d ON d.sk_data = f.sk_data_criacao
                 JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
@@ -577,7 +586,7 @@ async def get_kpis(db: AsyncSession, **filters: Any) -> dict[str, Any]:
     last_mom = series[-1]["variacao_mom"] if series else None
 
     comparison = await get_call_center_comparison(db, **filters)
-    call_center_item = next((item for item in comparison["itens"] if item["grupo"] == "Call Center Compesa"), None)
+    destaque_item = next((item for item in comparison["itens"] if item["eh_destaque"]), None)
 
     return {
         "total_manifestacoes": total,
@@ -586,31 +595,47 @@ async def get_kpis(db: AsyncSession, **filters: Any) -> dict[str, Any]:
         "pico_mes": {"ano_mes": pico["ano_mes"], "total": pico["total"]} if pico else None,
         "menor_mes": {"ano_mes": menor["ano_mes"], "total": menor["total"]} if menor else None,
         "variacao_mom_ultimo_mes": last_mom,
-        "total_call_center": call_center_item["total"] if call_center_item else 0,
-        "participacao_call_center": call_center_item["percentual"] if call_center_item else 0,
+        "total_call_center": destaque_item["total"] if destaque_item else 0,
+        "participacao_call_center": destaque_item["percentual"] if destaque_item else 0,
+        "rotulo_destaque": comparison.get("rotulo_destaque", "Call Center Compesa"),
     }
-
 
 async def get_call_center_comparison(db: AsyncSession, **filters: Any) -> dict[str, Any]:
     where_sql, params = _build_filters(**filters)
-    where_sql = f"{where_sql} AND a.flag_desconsiderar_regra_arpe = FALSE" if where_sql else "WHERE a.flag_desconsiderar_regra_arpe = FALSE"
+    destaque = filters.get("subassunto_destaque") or "Call Center Compesa"
+
+    if where_sql:
+        where_sql = f"{where_sql} AND a.flag_desconsiderar_regra_arpe = FALSE"
+    else:
+        where_sql = "WHERE a.flag_desconsiderar_regra_arpe = FALSE"
+
+    # Decide o critério do destaque
+    if filters.get("subassunto_destaque"):
+        destaque_expr = "a.subassunto = :subassunto_destaque"
+        params["subassunto_destaque"] = filters["subassunto_destaque"]
+    else:
+        destaque_expr = "a.flag_dificuldade_call_center"
+
+    params["rotulo_destaque"] = destaque
 
     result = await db.execute(
         text(
             f"""
-            SELECT
-                CASE WHEN a.flag_dificuldade_call_center
-                    THEN 'Call Center Compesa'
-                    ELSE 'Demais subassuntos'
-                END AS grupo,
-                SUM(f.qtd_manifestacoes)::int AS total
-            FROM fato_manifestacoes f
-            JOIN dim_data d ON d.sk_data = f.sk_data_criacao
-            JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
-            JOIN dim_origem o ON o.sk_origem = f.sk_origem
-            {where_sql}
-            GROUP BY grupo
-            ORDER BY grupo
+                WITH base AS (
+                    SELECT
+                        CASE WHEN {destaque_expr} THEN :rotulo_destaque ELSE 'Demais subassuntos' END AS grupo,
+                        {destaque_expr} AS eh_destaque,
+                        f.qtd_manifestacoes
+                    FROM fato_manifestacoes f
+                    JOIN dim_data d ON d.sk_data = f.sk_data_criacao
+                    JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
+                    JOIN dim_origem o ON o.sk_origem = f.sk_origem
+                    {where_sql}
+                )
+                SELECT grupo, BOOL_OR(eh_destaque) AS eh_destaque, SUM(qtd_manifestacoes)::int AS total
+                FROM base
+                GROUP BY grupo
+                ORDER BY eh_destaque DESC           
             """
         ),
         params,
@@ -619,4 +644,8 @@ async def get_call_center_comparison(db: AsyncSession, **filters: Any) -> dict[s
     total_considerado = sum(row["total"] for row in rows)
     for row in rows:
         row["percentual"] = round((row["total"] / total_considerado) * 100, 2) if total_considerado else 0
-    return {"total_considerado": total_considerado, "itens": rows}
+    return {
+        "total_considerado": total_considerado,
+        "itens": rows,
+        "rotulo_destaque": destaque,
+    }

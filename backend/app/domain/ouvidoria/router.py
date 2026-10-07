@@ -75,9 +75,10 @@ async def kpis(
     origem: str | None = None,
     assunto: str | None = None,
     subassunto: str | None = None,
+    subassunto_destaque: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    return await services.get_kpis(db, ano=ano, ano_mes_inicio=ano_mes_inicio, ano_mes_fim=ano_mes_fim, origem=origem, assunto=assunto, subassunto=subassunto)
+    return await services.get_kpis(db, ano=ano, ano_mes_inicio=ano_mes_inicio, ano_mes_fim=ano_mes_fim, origem=origem, assunto=assunto, subassunto=subassunto, subassunto_destaque=subassunto_destaque)
 
 
 @router.get("/dashboard/evolution", response_model=schemas.EvolutionResponse)
@@ -88,9 +89,10 @@ async def evolution(
     origem: str | None = None,
     assunto: str | None = None,
     subassunto: str | None = None,
+    subassunto_destaque: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    return await services.get_evolution(db, ano=ano, ano_mes_inicio=ano_mes_inicio, ano_mes_fim=ano_mes_fim, origem=origem, assunto=assunto, subassunto=subassunto)
+    return await services.get_evolution(db, ano=ano, ano_mes_inicio=ano_mes_inicio, ano_mes_fim=ano_mes_fim, origem=origem, assunto=assunto, subassunto=subassunto, subassunto_destaque=subassunto_destaque)
 
 
 @router.get(
@@ -104,6 +106,7 @@ async def call_center_comparison(
     origem: str | None = None,
     assunto: str | None = None,
     subassunto: str | None = None,
+    subassunto_destaque: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    return await services.get_call_center_comparison(db, ano=ano, ano_mes_inicio=ano_mes_inicio, ano_mes_fim=ano_mes_fim, origem=origem, assunto=assunto, subassunto=subassunto)
+    return await services.get_call_center_comparison(db, ano=ano, ano_mes_inicio=ano_mes_inicio, ano_mes_fim=ano_mes_fim, origem=origem, assunto=assunto, subassunto=subassunto, subassunto_destaque=subassunto_destaque)
