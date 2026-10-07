@@ -8,6 +8,8 @@ from app.config import settings
 from app.core.exceptions import AppException
 from app.core.middleware import logging_middleware, register_middlewares
 from app.domain.ouvidoria.router import router as ouvidoria_router
+from app.domain.auth.router import router as auth_router
+
 
 logging.basicConfig(
     level=logging.DEBUG if settings.app_debug else logging.INFO,
@@ -66,6 +68,7 @@ def create_app() -> FastAPI:
     register_middlewares(app)
     app.middleware("http")(logging_middleware)
     app.include_router(ouvidoria_router)
+    app.include_router(auth_router)
 
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):

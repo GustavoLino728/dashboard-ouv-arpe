@@ -14,6 +14,17 @@ class NotFoundError(AppException):
     def __init__(self, message: str = "Recurso nao encontrado"):
         super().__init__(message, status.HTTP_404_NOT_FOUND)
 
+class ForbiddenError(AppException):
+    def __init__(self, message: str = "Sem permissão para esta ação"):
+        super().__init__(message, status.HTTP_403_FORBIDDEN)
+
+class ConflictError(AppException):
+    def __init__(self, message: str = "Conflito com recurso existente"):
+        super().__init__(message, status.HTTP_409_CONFLICT)
+
+class UnauthorizedError(AppException):
+    def __init__(self, message: str = "Não autenticado"):
+        super().__init__(message, status.HTTP_401_UNAUTHORIZED)
 
 class ConflictError(AppException):
     def __init__(self, message: str = "Conflito com recurso existente"):

@@ -39,7 +39,7 @@ export function Sidebar() {
               src="/logo-arpe-negativo.png"
               alt="ARPE Painel"
               className="object-contain"
-              style={{ width: "130px", height: "auto" }}
+              style={{ width: "180px", height: "auto" }}
             />
           </Link>
           <button

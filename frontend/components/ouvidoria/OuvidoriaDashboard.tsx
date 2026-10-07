@@ -31,6 +31,13 @@ import {
   OuvidoriaFilters,
   OuvidoriaKpis,
 } from "@/lib/api";
+import {
+  buildManifestacoesUrl,
+  resolverFiltroKpi,
+  resolverSubassuntoCallCenter,
+  type FiltrosManifestacoes,
+} from "@/lib/filtrosManifestacoes";
+import Link from "next/link";
 
 type DashboardState = {
   filters: OuvidoriaFilters | null;
@@ -46,11 +53,13 @@ function KpiTile({
   value,
   detail,
   tone = "neutral",
+  href,
 }: {
   label: string;
   value: string | number;
   detail: string;
   tone?: "neutral" | "good" | "warn" | "danger";
+  href?: string | null;
 }) {
   const toneMap = {
     neutral: "border-line/40",
@@ -59,13 +68,32 @@ function KpiTile({
     danger: "border-red-500/40",
   };
 
-  return (
-    <div className={`bg-panel border ${toneMap[tone]} rounded-custom p-5 min-h-[118px]`}>
+  const baseClass = `bg-panel border ${toneMap[tone]} rounded-custom p-5 min-h-[118px] block text-left`;
+  const clickableClass = href
+    ? " transition hover:border-teal/60 hover:shadow-sm cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal/50"
+    : "";
+
+  const content = (
+    <>
       <p className="text-[12px] font-semibold text-ink-soft">{label}</p>
       <p className="mt-2 font-mono text-[28px] leading-none text-ink">{value}</p>
       <p className="mt-3 text-[12px] text-ink-soft">{detail}</p>
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={`${baseClass}${clickableClass}`}
+        aria-label={`Ver manifestações: ${label}`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={baseClass}>{content}</div>;
 }
 
 export function OuvidoriaDashboard() {
@@ -116,6 +144,50 @@ export function OuvidoriaDashboard() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadData]);
+
+  const filtrosBase: FiltrosManifestacoes = useMemo(
+    () => ({
+      ano_mes_inicio: anoMesInicio,
+      ano_mes_fim: anoMesFim,
+      origem,
+      assunto,
+    }),
+    [anoMesInicio, anoMesFim, origem, assunto]
+  );
+
+  const subassuntoCallCenter = useMemo(
+    () => resolverSubassuntoCallCenter(state.filters),
+    [state.filters]
+  );
+
+  const hrefTotalPeriodo = useMemo(() => {
+    const override = resolverFiltroKpi("total-periodo", { base: filtrosBase });
+    return override ? buildManifestacoesUrl(filtrosBase, override) : null;
+  }, [filtrosBase]);
+
+  const hrefMesPico = useMemo(() => {
+    const override = resolverFiltroKpi("mes-pico", {
+      base: filtrosBase,
+      picoMes: state.kpis?.pico_mes?.ano_mes ?? null,
+    });
+    return override ? buildManifestacoesUrl(filtrosBase, override) : null;
+  }, [filtrosBase, state.kpis?.pico_mes?.ano_mes]);
+
+  const hrefMenorMes = useMemo(() => {
+    const override = resolverFiltroKpi("mes-menor-volume", {
+      base: filtrosBase,
+      menorMes: state.kpis?.menor_mes?.ano_mes ?? null,
+    });
+    return override ? buildManifestacoesUrl(filtrosBase, override) : null;
+  }, [filtrosBase, state.kpis?.menor_mes?.ano_mes]);
+
+  const hrefCallCenter = useMemo(() => {
+    const override = resolverFiltroKpi("call-center-compesa", {
+      base: filtrosBase,
+      subassuntoCallCenter,
+    });
+    return override ? buildManifestacoesUrl(filtrosBase, override) : null;
+  }, [filtrosBase, subassuntoCallCenter]);
 
   const topTypologies = useMemo(() => {
     const totals = new Map<string, number>();
@@ -227,11 +299,11 @@ export function OuvidoriaDashboard() {
           Array.from({ length: 8 }).map((_, idx) => <div key={idx} className="bg-panel border border-line/30 rounded-custom min-h-[118px] animate-pulse" />)
         ) : (
           <>
-            <KpiTile label="Total no periodo" value={numberFmt.format(kpis.total_manifestacoes)} detail={`${kpis.total_meses} meses analisados`} />
+            <KpiTile label="Total no periodo" value={numberFmt.format(kpis.total_manifestacoes)} detail={`${kpis.total_meses} meses analisados`} href={hrefTotalPeriodo}/>
             <KpiTile label="Media mensal" value={numberFmt.format(kpis.media_mensal)} detail="Manifestacoes por mes" />
-            <KpiTile label="Mes de pico" value={kpis.pico_mes?.ano_mes ?? "-"} detail={`${numberFmt.format(kpis.pico_mes?.total ?? 0)} registros`} tone="warn" />
-            <KpiTile label="Mes de menor volume" value={kpis.menor_mes?.ano_mes ?? "-"} detail={`${numberFmt.format(kpis.menor_mes?.total ?? 0)} registros`} tone="good" />
-            <KpiTile label="Call Center Compesa" value={numberFmt.format(kpis.total_call_center)} detail="Subassunto destacado" />
+            <KpiTile label="Mes de pico" value={kpis.pico_mes?.ano_mes ?? "-"} detail={`${numberFmt.format(kpis.pico_mes?.total ?? 0)} registros`} tone="warn" href={hrefMesPico}/>
+            <KpiTile label="Mes de menor volume" value={kpis.menor_mes?.ano_mes ?? "-"} detail={`${numberFmt.format(kpis.menor_mes?.total ?? 0)} registros`} tone="good" href={hrefMenorMes}/>
+            <KpiTile label="Call Center Compesa" value={numberFmt.format(kpis.total_call_center)} detail="Subassunto destacado" href={hrefCallCenter}/>
             <KpiTile label="Participacao Call Center" value={`${kpis.participacao_call_center}%`} detail="Exclui telefone/endereco da prestadora" tone="danger" />
             <KpiTile label="MoM ultimo mes" value={kpis.variacao_mom_ultimo_mes === null ? "-" : `${kpis.variacao_mom_ultimo_mes}%`} detail="Variacao contra mes anterior" />
             <KpiTile label="Base comparativa" value={numberFmt.format(state.comparison?.total_considerado ?? 0)} detail="Registros apos regra de exclusao" />

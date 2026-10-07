@@ -2,6 +2,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const orig = console.error;
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].includes('Encountered a script tag')) return;
+    orig.apply(console, args);
+  };
+}
+
 type Theme = "light" | "dark";
 
 interface ThemeContextType {
@@ -12,25 +20,25 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "dark" || attr === "light") return attr;
+  try {
+    const saved = localStorage.getItem("arpe-theme") as Theme | null;
+    if (saved === "dark" || saved === "light") return saved;
+  } catch {}
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
+  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const savedTheme = localStorage.getItem("arpe-theme") as Theme | null;
-        if (savedTheme === "dark" || savedTheme === "light") {
-          setThemeState(savedTheme);
-        } else {
-          const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          setThemeState(systemPrefersDark ? "dark" : "light");
-        }
-      } catch (e) {
-        console.warn("localStorage not available:", e);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    const root = document.documentElement;
+    root.setAttribute("data-theme", theme);
+    root.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
@@ -38,14 +46,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("arpe-theme", newTheme);
     } catch (e) {
       console.warn("Could not save theme to localStorage:", e);
-    }
-
-    const root = document.documentElement;
-    root.setAttribute("data-theme", newTheme);
-    if (newTheme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
     }
   };
 

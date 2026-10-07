@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,24 +38,22 @@ export default function RootLayout({
       className={`${geistSans.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var saved = localStorage.getItem('arpe-theme');
-                  var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-                  document.documentElement.setAttribute('data-theme', theme);
-                  document.documentElement.classList.toggle('dark', theme === 'dark');
-                } catch (e) {}
-              })()
-            `,
-          }}
-        />
-      </head>
       <body className="h-full overflow-hidden">
-        <ThemeProvider>{children}</ThemeProvider>
+        <Script id="arpe-theme-init" strategy="beforeInteractive">
+          {`
+            (function() {
+              try {
+                var saved = localStorage.getItem('arpe-theme');
+                var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+                document.documentElement.classList.toggle('dark', theme === 'dark');
+              } catch (e) {}
+            })()
+          `}
+        </Script>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

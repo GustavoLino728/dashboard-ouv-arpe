@@ -24,6 +24,17 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:3001"]
 
+    # Auth — JWT
+    secret_key: str = "troque-esta-chave-em-producao-com-openssl-rand-hex-32"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 480  # 8h
+
+    # Auth — Cookie
+    cookie_name: str = "access_token"
+    cookie_secure: bool = False   # True em produção (HTTPS)
+    cookie_httponly: bool = True
+    cookie_samesite: str = "lax"
+
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, value: str) -> str:

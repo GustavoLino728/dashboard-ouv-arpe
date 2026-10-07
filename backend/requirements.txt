@@ -9,3 +9,6 @@ python-multipart
 pandas
 openpyxl
 xlrd
+bcrypt
+pydantic[email]
+python-jose[cryptography]
