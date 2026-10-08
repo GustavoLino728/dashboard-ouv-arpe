@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
 from app.domain.ouvidoria import schemas, services
+from app.dependencies import AdminUser
 
 router = APIRouter(prefix="/api/v1", tags=["Ouvidoria"])
 
@@ -13,7 +14,10 @@ async def filters(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/uploads", response_model=list[schemas.UploadPlanilhaItem])
-async def uploads(db: AsyncSession = Depends(get_db)):
+async def uploads(
+    db: AsyncSession = Depends(get_db),
+    _: AdminUser = None,
+):
     return await services.list_uploads(db)
 
 
@@ -22,6 +26,7 @@ async def upload_planilha(
     file: UploadFile = File(...),
     nome_planilha: str | None = Form(default=None),
     db: AsyncSession = Depends(get_db),
+    _: AdminUser = None,
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Arquivo sem nome.")
@@ -35,7 +40,11 @@ async def upload_planilha(
 
 
 @router.delete("/uploads/{upload_id}", response_model=schemas.DeleteUploadResponse)
-async def delete_upload(upload_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_upload(
+    upload_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: AdminUser = None,
+):
     try:
         return await services.delete_upload(db, upload_id)
     except ValueError as exc:

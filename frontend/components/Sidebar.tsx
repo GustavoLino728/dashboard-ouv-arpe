@@ -3,18 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboard } from "@/components/DashboardProvider";
+import { useAuth } from "@/contexts/AuthContext";
+import { podeVerPlanilhas, podeVerUsuarios } from "@/lib/roles";
 import { BarChart3, FileText, Upload, Users, X } from "lucide-react";
 
-const navItems = [
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  visivel?: (role?: string | null) => boolean;
+};
+
+const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
   { name: "Manifestações", href: "/manifestacoes", icon: FileText },
-  { name: "Planilhas", href: "/planilhas", icon: Upload },
-  { name: "Usuários", href: "/usuarios", icon: Users },
+  { name: "Planilhas", href: "/planilhas", icon: Upload, visivel: podeVerPlanilhas },
+  { name: "Usuários", href: "/usuarios", icon: Users, visivel: podeVerUsuarios },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { isMobileOpen, setIsMobileOpen, isDesktopOpen } = useDashboard();
+  const { user, isLoading } = useAuth();
+
+  const itensVisiveis = isLoading
+    ? []
+    : navItems.filter((item) =>
+        item.visivel ? item.visivel(user?.role) : true
+      );
 
   return (
     <>
@@ -54,7 +70,7 @@ export function Sidebar() {
 
         <nav className="flex flex-col flex-1 gap-1">
           <ul className="list-none m-0 p-0 flex flex-col w-full gap-1">
-            {navItems.map((item) => {
+            {itensVisiveis.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
