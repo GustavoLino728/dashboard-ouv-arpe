@@ -56,12 +56,14 @@ function KpiTile({
   detail,
   tone = "neutral",
   href,
+  tooltip,
 }: {
   label: string;
   value: string | number;
   detail: string;
   tone?: "neutral" | "good" | "warn" | "danger";
   href?: string | null;
+  tooltip?: string;
 }) {
   const toneMap = {
     neutral: "border-line/40",
@@ -77,7 +79,18 @@ function KpiTile({
 
   const content = (
     <>
-      <p className="text-[12px] font-semibold text-ink-soft">{label}</p>
+      <p className="text-[12px] font-semibold text-ink-soft flex items-center gap-1.5">
+        {label}
+        {tooltip && (
+          <span
+            title={tooltip}
+            aria-label={tooltip}
+            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-line/60 text-ink-soft text-[9px] font-bold cursor-help select-none"
+          >
+            ?
+          </span>
+        )}
+      </p>
       <p className="mt-2 font-mono text-[28px] leading-none text-ink">{value}</p>
       <p className="mt-3 text-[12px] text-ink-soft">{detail}</p>
     </>
@@ -332,7 +345,8 @@ export function OuvidoriaDashboard() {
             <KpiTile label={rotuloDestaque} value={numberFmt.format(kpis.total_call_center)} detail="Subassunto destacado" href={hrefCallCenter}/>
             <KpiTile label={`Participacao ${rotuloDestaque}`} value={`${kpis.participacao_call_center}%`} detail="Exclui telefone/endereco da prestadora" tone="danger" />
             <KpiTile label="MoM ultimo mes" value={kpis.variacao_mom_ultimo_mes === null ? "-" : `${kpis.variacao_mom_ultimo_mes}%`} detail="Variacao contra mes anterior" />
-            <KpiTile label="Base comparativa" value={numberFmt.format(state.comparison?.total_considerado ?? 0)} detail="Registros apos regra de exclusao" />
+            <KpiTile label="Base comparativa" value={numberFmt.format(state.comparison?.total_considerado ?? 0)} detail="Registros apos regra de exclusao" tooltip="A regra de exclusão desconsidera manifestações do subassunto de informações de telefone/endereço da prestadora de serviço, para que a comparação da participação do subassunto destacado não seja distorcida por esses registros."
+/>
           </>
         )}
       </section>
