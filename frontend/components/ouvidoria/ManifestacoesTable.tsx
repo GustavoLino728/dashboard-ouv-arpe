@@ -37,7 +37,6 @@ export function ManifestacoesTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Inicialização lendo da URL (permite deep-link e navegação com filtros prontos)
   const [anoMesInicio, setAnoMesInicio] = useState(
     searchParams.get("ano_mes_inicio") ?? DEFAULT_ANO_MES_INICIO
   );
@@ -56,6 +55,15 @@ export function ManifestacoesTable() {
   const [situacao, setSituacao] = useState(
     searchParams.get("situacao") ?? DEFAULT_VALOR
   );
+  const [tipoAtendimento, setTipoAtendimento] = useState(
+    searchParams.get("tipo_atendimento") ?? DEFAULT_VALOR
+  );
+  const [diasMin, setDiasMin] = useState<string>(
+    searchParams.get("dias_min") ?? ""
+  );
+  const [diasMax, setDiasMax] = useState<string>(
+    searchParams.get("dias_max") ?? ""
+  );
 
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState("1");
@@ -69,10 +77,25 @@ export function ManifestacoesTable() {
       assunto,
       subassunto,
       situacao,
+      tipo_atendimento: tipoAtendimento,
+      dias_min: diasMin === "" ? undefined : Number(diasMin),
+      dias_max: diasMax === "" ? undefined : Number(diasMax),
       page,
       page_size: pageSize,
     }),
-    [anoMesInicio, anoMesFim, origem, assunto, subassunto, situacao, page, pageSize]
+    [
+      anoMesInicio,
+      anoMesFim,
+      origem,
+      assunto,
+      subassunto,
+      situacao,
+      tipoAtendimento,
+      diasMin,
+      diasMax,
+      page,
+      pageSize,
+    ]
   );
 
   const loadData = useCallback(async () => {
@@ -108,11 +131,26 @@ export function ManifestacoesTable() {
     if (assunto !== DEFAULT_VALOR) params.set("assunto", assunto);
     if (subassunto !== DEFAULT_VALOR) params.set("subassunto", subassunto);
     if (situacao !== DEFAULT_VALOR) params.set("situacao", situacao);
+    if (tipoAtendimento !== DEFAULT_VALOR) params.set("tipo_atendimento", tipoAtendimento);
+    if (diasMin !== "") params.set("dias_min", diasMin);
+    if (diasMax !== "") params.set("dias_max", diasMax);
 
     const qs = params.toString();
     const target = qs ? `${pathname}?${qs}` : pathname;
     router.replace(target, { scroll: false });
-  }, [anoMesInicio, anoMesFim, origem, assunto, subassunto, situacao, pathname, router]);
+  }, [
+    anoMesInicio,
+    anoMesFim,
+    origem,
+    assunto,
+    subassunto,
+    situacao,
+    tipoAtendimento,
+    diasMin,
+    diasMax,
+    pathname,
+    router,
+  ]);
 
   const resetToFirstPage = (setter: (value: string) => void, value: string) => {
     setter(value);
@@ -136,6 +174,8 @@ export function ManifestacoesTable() {
     setPageInput(String(nextPage));
   };
 
+  const hasDiasFiltro = diasMin !== "" || diasMax !== "";
+
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-wrap items-end gap-4">
@@ -147,8 +187,8 @@ export function ManifestacoesTable() {
         </div>
       </section>
 
-      <section className="bg-panel border border-line/30 rounded-custom p-5">
-        <div className="grid grid-cols-6 gap-3 max-2xl:grid-cols-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
+      <section className="bg-panel border border-line/30 rounded-custom p-5 flex flex-col gap-4">
+        <div className="grid grid-cols-4 gap-3 max-2xl:grid-cols-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
           <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
             Início
             <select value={anoMesInicio} onChange={(event) => resetToFirstPage(setAnoMesInicio, event.target.value)} className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2">
@@ -201,6 +241,71 @@ export function ManifestacoesTable() {
               ))}
             </select>
           </label>
+          <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
+            Tipo de atendimento
+            <select
+              value={tipoAtendimento}
+              onChange={(event) => resetToFirstPage(setTipoAtendimento, event.target.value)}
+              className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2"
+            >
+              <option value="todos">Todos</option>
+              {(filters?.tipos_atendimento ?? []).map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 border-t border-line/20 pt-4">
+          <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
+            Dias mínimos para conclusão
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={diasMin}
+              onChange={(event) => {
+                setDiasMin(event.target.value);
+                setPage(1);
+                setPageInput("1");
+              }}
+              placeholder="Ex: 30"
+              className="w-[140px] text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
+            Dias máximos para conclusão
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={diasMax}
+              onChange={(event) => {
+                setDiasMax(event.target.value);
+                setPage(1);
+                setPageInput("1");
+              }}
+              placeholder="Ex: 90"
+              className="w-[140px] text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2"
+            />
+          </label>
+          {hasDiasFiltro && (
+            <button
+              type="button"
+              onClick={() => {
+                setDiasMin("");
+                setDiasMax("");
+                setPage(1);
+                setPageInput("1");
+              }}
+              className="mb-2 text-[12px] text-ink-soft hover:text-ink underline"
+            >
+              Limpar filtro de dias
+            </button>
+          )}
+          <p className="mb-2 text-[11px] text-ink-soft/70">
+            Aplica-se apenas a manifestações com conclusão registrada.
+          </p>
         </div>
       </section>
 

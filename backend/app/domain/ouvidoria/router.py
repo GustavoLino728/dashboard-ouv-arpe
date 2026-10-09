@@ -61,6 +61,10 @@ async def manifestacoes(
     origem: str | None = None,
     assunto: str | None = None,
     subassunto: str | None = None,
+    situacao: str | None = None,
+    tipo_atendimento: str | None = None,
+    dias_min: int | None = None,
+    dias_max: int | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     return await services.get_manifestacoes(
@@ -73,6 +77,10 @@ async def manifestacoes(
         origem=origem,
         assunto=assunto,
         subassunto=subassunto,
+        situacao=situacao,
+        tipo_atendimento=tipo_atendimento,
+        dias_min=dias_min,
+        dias_max=dias_max,
     )
 
 

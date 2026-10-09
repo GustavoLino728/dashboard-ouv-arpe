@@ -14,6 +14,8 @@ class DashboardFilters(BaseModel):
     origens: list[FilterOption]
     assuntos: list[FilterOption]
     subassuntos: list[FilterOption]
+    situacoes: list[FilterOption]
+    tipos_atendimento: list[FilterOption]
 
 
 class PeakMonth(BaseModel):

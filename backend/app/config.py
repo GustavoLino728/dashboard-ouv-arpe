@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     secret_key: str = "troque-esta-chave-em-producao-com-openssl-rand-hex-32"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 480  # 8h
+    refresh_token_expire_days: int = 7
 
     # Auth — Cookie
     cookie_name: str = "access_token"

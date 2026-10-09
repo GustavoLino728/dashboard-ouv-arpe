@@ -1,9 +1,13 @@
 from datetime import datetime, timedelta, timezone
+from typing import Any, Literal
 
 import bcrypt
 from jose import JWTError, jwt
 
 from app.config import settings
+
+ACCESS_TOKEN_TYPE: Literal["access"] = "access"
+REFRESH_TOKEN_TYPE: Literal["refresh"] = "refresh"
 
 
 def hash_password(plain: str) -> str:
@@ -22,18 +26,53 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(subject: str, role: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.access_token_expire_minutes
-    )
-    payload = {"sub": subject, "role": role, "exp": expire}
+def _create_token(
+    subject: str,
+    role: str,
+    token_type: Literal["access", "refresh"],
+    expires_delta: timedelta,
+) -> str:
+    expire = datetime.now(timezone.utc) + expires_delta
+    payload: dict[str, Any] = {
+        "sub": subject,
+        "role": role,
+        "type": token_type,
+        "exp": expire,
+    }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
-def decode_access_token(token: str) -> dict | None:
+def create_access_token(subject: str, role: str) -> str:
+    return _create_token(
+        subject,
+        role,
+        ACCESS_TOKEN_TYPE,
+        timedelta(minutes=settings.access_token_expire_minutes),
+    )
+
+
+def create_refresh_token(subject: str, role: str) -> str:
+    return _create_token(
+        subject,
+        role,
+        REFRESH_TOKEN_TYPE,
+        timedelta(days=settings.refresh_token_expire_days),
+    )
+
+
+def _decode_token(token: str, expected_type: Literal["access", "refresh"]) -> dict | None:
     try:
-        return jwt.decode(
-            token, settings.secret_key, algorithms=[settings.algorithm]
-        )
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
     except JWTError:
         return None
+    if payload.get("type") != expected_type:
+        return None
+    return payload
+
+
+def decode_access_token(token: str) -> dict | None:
+    return _decode_token(token, ACCESS_TOKEN_TYPE)
+
+
+def decode_refresh_token(token: str) -> dict | None:
+    return _decode_token(token, REFRESH_TOKEN_TYPE)

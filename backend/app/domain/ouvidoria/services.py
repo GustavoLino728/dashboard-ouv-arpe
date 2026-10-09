@@ -83,6 +83,10 @@ def _build_filters(
     origem: str | None = None,
     assunto: str | None = None,
     subassunto: str | None = None,
+    situacao: str | None = None,
+    tipo_atendimento: str | None = None,
+    dias_min: int | None = None,
+    dias_max: int | None = None,
     subassunto_destaque: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     clauses = []
@@ -106,6 +110,18 @@ def _build_filters(
     if subassunto:
         clauses.append("a.subassunto = :subassunto")
         params["subassunto"] = subassunto
+    if situacao:
+        clauses.append("s.situacao = :situacao")
+        params["situacao"] = situacao
+    if tipo_atendimento:
+        clauses.append("s.tipo_atendimento = :tipo_atendimento")
+        params["tipo_atendimento"] = tipo_atendimento
+    if dias_min is not None:
+        clauses.append("f.dias_para_conclusao >= :dias_min")
+        params["dias_min"] = dias_min
+    if dias_max is not None:
+        clauses.append("f.dias_para_conclusao <= :dias_max")
+        params["dias_max"] = dias_max
 
     where_sql = " AND ".join(clauses)
     return (f"WHERE {where_sql}" if where_sql else ""), params
@@ -135,6 +151,15 @@ async def get_filters(db: AsyncSession) -> dict[str, Any]:
     )
     assuntos = await db.execute(text("SELECT DISTINCT assunto FROM dim_assunto ORDER BY assunto"))
     subassuntos = await db.execute(text("SELECT DISTINCT subassunto FROM dim_assunto ORDER BY subassunto"))
+    situacoes = await db.execute(
+        text("SELECT DISTINCT situacao FROM dim_status WHERE situacao IS NOT NULL ORDER BY situacao")
+    )
+    tipos_atendimento = await db.execute(
+        text(
+            "SELECT DISTINCT tipo_atendimento FROM dim_status "
+            "WHERE tipo_atendimento IS NOT NULL ORDER BY tipo_atendimento"
+        )
+    )
 
     return {
         "anos": sorted({row["ano"] for row in dates}),
@@ -145,6 +170,8 @@ async def get_filters(db: AsyncSession) -> dict[str, Any]:
         "origens": [{"value": row["origem"], "label": row["origem"]} for row in origins.mappings()],
         "assuntos": [{"value": row[0], "label": row[0]} for row in assuntos.all()],
         "subassuntos": [{"value": row[0], "label": row[0]} for row in subassuntos.all()],
+        "situacoes": [{"value": row[0], "label": row[0]} for row in situacoes.all()],
+        "tipos_atendimento": [{"value": row[0], "label": row[0]} for row in tipos_atendimento.all()],
     }
 
 
@@ -450,6 +477,7 @@ async def get_manifestacoes(
             JOIN dim_data d ON d.sk_data = f.sk_data_criacao
             JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
             JOIN dim_origem o ON o.sk_origem = f.sk_origem
+            JOIN dim_status s ON s.sk_status = f.sk_status
             {where_sql}
             """
         ),
@@ -527,6 +555,7 @@ async def get_monthly_series(db: AsyncSession, **filters: Any) -> list[dict[str,
                 JOIN dim_data d ON d.sk_data = f.sk_data_criacao
                 JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
                 JOIN dim_origem o ON o.sk_origem = f.sk_origem
+                JOIN dim_status s ON s.sk_status = f.sk_status
                 {where_sql}
                 GROUP BY d.ano_mes
             )
@@ -567,6 +596,7 @@ async def get_evolution(db: AsyncSession, **filters: Any) -> dict[str, Any]:
             JOIN dim_data d ON d.sk_data = f.sk_data_criacao
             JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
             JOIN dim_origem o ON o.sk_origem = f.sk_origem
+            JOIN dim_status s ON s.sk_status = f.sk_status
             {where_sql}
             GROUP BY d.ano_mes, a.subassunto
             ORDER BY d.ano_mes, total DESC
@@ -600,6 +630,7 @@ async def get_kpis(db: AsyncSession, **filters: Any) -> dict[str, Any]:
         "rotulo_destaque": comparison.get("rotulo_destaque", "Call Center Compesa"),
     }
 
+
 async def get_call_center_comparison(db: AsyncSession, **filters: Any) -> dict[str, Any]:
     where_sql, params = _build_filters(**filters)
     destaque = filters.get("subassunto_destaque") or "Call Center Compesa"
@@ -609,7 +640,6 @@ async def get_call_center_comparison(db: AsyncSession, **filters: Any) -> dict[s
     else:
         where_sql = "WHERE a.flag_desconsiderar_regra_arpe = FALSE"
 
-    # Decide o critério do destaque
     if filters.get("subassunto_destaque"):
         destaque_expr = "a.subassunto = :subassunto_destaque"
         params["subassunto_destaque"] = filters["subassunto_destaque"]
@@ -630,12 +660,13 @@ async def get_call_center_comparison(db: AsyncSession, **filters: Any) -> dict[s
                     JOIN dim_data d ON d.sk_data = f.sk_data_criacao
                     JOIN dim_assunto a ON a.sk_assunto = f.sk_assunto
                     JOIN dim_origem o ON o.sk_origem = f.sk_origem
+                    JOIN dim_status s ON s.sk_status = f.sk_status
                     {where_sql}
                 )
                 SELECT grupo, BOOL_OR(eh_destaque) AS eh_destaque, SUM(qtd_manifestacoes)::int AS total
                 FROM base
                 GROUP BY grupo
-                ORDER BY eh_destaque DESC           
+                ORDER BY eh_destaque DESC
             """
         ),
         params,

@@ -14,6 +14,7 @@ class RegisterIn(BaseModel):
 
 class TokenOut(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     ok: bool = True
     message: str = "Login realizado com sucesso."
@@ -22,3 +23,6 @@ class TokenOut(BaseModel):
 class RegisterOut(BaseModel):
     ok: bool = True
     message: str = "Usuário registrado com sucesso."
+
+class RefreshIn(BaseModel):
+    refresh_token: str
