@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -33,6 +34,7 @@ import {
 } from "@/lib/api";
 import {
   buildManifestacoesUrl,
+  buildManifestacoesUrlParaMes,
   resolverFiltroKpi,
   resolverSubassuntoCallCenter,
   type FiltrosManifestacoes,
@@ -97,6 +99,7 @@ function KpiTile({
 }
 
 export function OuvidoriaDashboard() {
+  const router = useRouter();
   const [state, setState] = useState<DashboardState>({
     filters: null,
     kpis: null,
@@ -167,7 +170,6 @@ export function OuvidoriaDashboard() {
     return () => window.clearTimeout(timer);
   }, [loadData]);
 
-  // Rótulo legível do destaque (preferência: o que o backend devolveu)
   const rotuloDestaque = useMemo(() => {
     if (state.kpis?.rotulo_destaque) return state.kpis.rotulo_destaque;
     const item = state.filters?.subassuntos?.find(
@@ -176,7 +178,6 @@ export function OuvidoriaDashboard() {
     return item?.label ?? "Call Center Compesa";
   }, [state.kpis?.rotulo_destaque, state.filters, subassuntoDestaqueEfetivo]);
 
-  // Links para a tela de manifestações com filtros relevantes
   const hrefTotalPeriodo = useMemo(() => {
     const override = resolverFiltroKpi("total-periodo", { base: filtrosBase });
     return override ? buildManifestacoesUrl(filtrosBase, override) : null;
@@ -270,13 +271,6 @@ export function OuvidoriaDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-wrap items-end gap-4">
-        <div className="mr-auto">
-          <h1 className="text-[22px] font-semibold text-ink">Ouvidoria ARPE</h1>
-          <p className="text-[13px] text-ink-soft mt-1">
-            Manifestacoes OUVE PE com foco em atendimento do Call Center da Compesa
-          </p>
-        </div>
-
         <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
           Inicio
           <select value={anoMesInicio} onChange={(e) => setAnoMesInicio(e.target.value)} className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2">
@@ -390,14 +384,19 @@ export function OuvidoriaDashboard() {
           <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
             {series.slice(1).map((item) => {
               const isUp = (item.variacao_mom ?? 0) >= 0;
+              const href = buildManifestacoesUrlParaMes(filtrosBase, item.ano_mes);
               return (
-                <div key={item.ano_mes} className="flex items-center justify-between rounded-lg border border-line/40 px-3 py-2">
+                <Link
+                  key={item.ano_mes}
+                  href={href}
+                  className="flex items-center justify-between rounded-lg border border-line/40 px-3 py-2 transition hover:border-teal/60 hover:bg-teal/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal/50"
+                >
                   <span className="text-[13px] font-semibold text-ink">{item.ano_mes}</span>
                   <span className={`flex items-center gap-1 text-[13px] font-semibold ${isUp ? "text-red-600" : "text-teal"}`}>
                     {isUp ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
                     {item.variacao_mom ?? 0}%
                   </span>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -405,9 +404,21 @@ export function OuvidoriaDashboard() {
 
         <div className="bg-panel border border-line/30 rounded-custom p-6">
           <h2 className="text-[14px] font-semibold text-ink mb-4">Evolucao mensal das tipologias</h2>
-          <div className="h-[300px]">
+          <div className="h-[300px] cursor-pointer">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={typologyEvolutionData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+              <BarChart
+                data={typologyEvolutionData}
+                margin={{ top: 10, right: 20, left: -20, bottom: 0 }}
+                onClick={(state) => {
+                  if (!state) return;
+                  const mes =
+                    (state.activeLabel as string | undefined) ??
+                    (typeof state.activeTooltipIndex === "number"
+                      ? (typologyEvolutionData[state.activeTooltipIndex]?.ano_mes as string | undefined)
+                      : undefined);
+                  if (mes) router.push(buildManifestacoesUrlParaMes(filtrosBase, mes));
+                }}
+              >
                 {commonGrid}
                 <XAxis dataKey="ano_mes" tick={axisTick} axisLine={false} tickLine={false} />
                 <YAxis tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />

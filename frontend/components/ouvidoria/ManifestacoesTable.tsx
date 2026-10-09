@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, RefreshCw, Search } from "lucide-react";
 import {
   fetchManifestacoes,
@@ -10,6 +11,10 @@ import {
 } from "@/lib/api";
 
 const numberFmt = new Intl.NumberFormat("pt-BR");
+
+const DEFAULT_ANO_MES_INICIO = "2025-04";
+const DEFAULT_ANO_MES_FIM = "2026-08";
+const DEFAULT_VALOR = "todos";
 
 function formatDate(value: string | null) {
   if (!value) return "-";
@@ -23,15 +28,35 @@ function shortText(value: string | null, fallback = "-") {
 }
 
 export function ManifestacoesTable() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [filters, setFilters] = useState<OuvidoriaFilters | null>(null);
   const [data, setData] = useState<ManifestacoesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [anoMesInicio, setAnoMesInicio] = useState("2025-04");
-  const [anoMesFim, setAnoMesFim] = useState("2026-08");
-  const [origem, setOrigem] = useState("todos");
-  const [assunto, setAssunto] = useState("todos");
-  const [subassunto, setSubassunto] = useState("todos");
+
+  // Inicialização lendo da URL (permite deep-link e navegação com filtros prontos)
+  const [anoMesInicio, setAnoMesInicio] = useState(
+    searchParams.get("ano_mes_inicio") ?? DEFAULT_ANO_MES_INICIO
+  );
+  const [anoMesFim, setAnoMesFim] = useState(
+    searchParams.get("ano_mes_fim") ?? DEFAULT_ANO_MES_FIM
+  );
+  const [origem, setOrigem] = useState(
+    searchParams.get("origem") ?? DEFAULT_VALOR
+  );
+  const [assunto, setAssunto] = useState(
+    searchParams.get("assunto") ?? DEFAULT_VALOR
+  );
+  const [subassunto, setSubassunto] = useState(
+    searchParams.get("subassunto") ?? DEFAULT_VALOR
+  );
+  const [situacao, setSituacao] = useState(
+    searchParams.get("situacao") ?? DEFAULT_VALOR
+  );
+
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState("1");
   const [pageSize, setPageSize] = useState(25);
@@ -43,10 +68,11 @@ export function ManifestacoesTable() {
       origem,
       assunto,
       subassunto,
+      situacao,
       page,
       page_size: pageSize,
     }),
-    [anoMesInicio, anoMesFim, origem, assunto, subassunto, page, pageSize]
+    [anoMesInicio, anoMesFim, origem, assunto, subassunto, situacao, page, pageSize]
   );
 
   const loadData = useCallback(async () => {
@@ -72,6 +98,21 @@ export function ManifestacoesTable() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadData]);
+
+  // Espelha o estado dos filtros na URL (deep-link, refresh, compartilhamento)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (anoMesInicio !== DEFAULT_ANO_MES_INICIO) params.set("ano_mes_inicio", anoMesInicio);
+    if (anoMesFim !== DEFAULT_ANO_MES_FIM) params.set("ano_mes_fim", anoMesFim);
+    if (origem !== DEFAULT_VALOR) params.set("origem", origem);
+    if (assunto !== DEFAULT_VALOR) params.set("assunto", assunto);
+    if (subassunto !== DEFAULT_VALOR) params.set("subassunto", subassunto);
+    if (situacao !== DEFAULT_VALOR) params.set("situacao", situacao);
+
+    const qs = params.toString();
+    const target = qs ? `${pathname}?${qs}` : pathname;
+    router.replace(target, { scroll: false });
+  }, [anoMesInicio, anoMesFim, origem, assunto, subassunto, situacao, pathname, router]);
 
   const resetToFirstPage = (setter: (value: string) => void, value: string) => {
     setter(value);
@@ -107,7 +148,7 @@ export function ManifestacoesTable() {
       </section>
 
       <section className="bg-panel border border-line/30 rounded-custom p-5">
-        <div className="grid grid-cols-5 gap-3 max-2xl:grid-cols-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
+        <div className="grid grid-cols-6 gap-3 max-2xl:grid-cols-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
           <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
             Início
             <select value={anoMesInicio} onChange={(event) => resetToFirstPage(setAnoMesInicio, event.target.value)} className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2">
@@ -147,6 +188,15 @@ export function ManifestacoesTable() {
             <select value={subassunto} onChange={(event) => resetToFirstPage(setSubassunto, event.target.value)} className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2">
               <option value="todos">Todos</option>
               {(filters?.subassuntos ?? []).map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ink-soft">
+            Situação
+            <select value={situacao} onChange={(event) => resetToFirstPage(setSituacao, event.target.value)} className="text-[13px] rounded-lg border border-line bg-panel text-ink px-3 py-2">
+              <option value="todos">Todas</option>
+              {(filters?.situacoes ?? []).map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
               ))}
             </select>
@@ -196,12 +246,12 @@ export function ManifestacoesTable() {
                   <th className="px-4 py-3 font-semibold">Protocolo</th>
                   <th className="px-4 py-3 font-semibold">Criação</th>
                   <th className="px-4 py-3 font-semibold">Situação</th>
+                  <th className="px-4 py-3 font-semibold">Tipo de atendimento</th>
                   <th className="px-4 py-3 font-semibold">Origem</th>
                   <th className="px-4 py-3 font-semibold">Assunto</th>
                   <th className="px-4 py-3 font-semibold">Subassunto</th>
-                  <th className="px-4 py-3 font-semibold">Setores</th>
+                  <th className="px-4 py-3 font-semibold">Conclusão</th>
                   <th className="px-4 py-3 font-semibold">Dias</th>
-                  <th className="px-4 py-3 font-semibold">Planilha</th>
                 </tr>
               </thead>
               <tbody>
@@ -210,12 +260,14 @@ export function ManifestacoesTable() {
                     <td className="px-4 py-3 font-mono">{item.id_protocolo}</td>
                     <td className="px-4 py-3">{formatDate(item.data_criacao)}</td>
                     <td className="px-4 py-3">{shortText(item.situacao)}</td>
+                    <td className="px-4 py-3 max-w-[180px] truncate" title={item.tipo_atendimento ?? ""}>
+                      {shortText(item.tipo_atendimento)}
+                    </td>
                     <td className="px-4 py-3">{shortText(item.origem_atendimento)}</td>
                     <td className="px-4 py-3 max-w-[180px] truncate" title={item.assunto}>{item.assunto}</td>
                     <td className="px-4 py-3 max-w-[260px] truncate" title={item.subassunto}>{item.subassunto}</td>
-                    <td className="px-4 py-3 max-w-[170px] truncate" title={item.setores ?? ""}>{shortText(item.setores)}</td>
+                    <td className="px-4 py-3">{formatDate(item.data_conclusao)}</td>
                     <td className="px-4 py-3">{item.dias_para_conclusao ?? "-"}</td>
-                    <td className="px-4 py-3 max-w-[180px] truncate" title={item.nome_planilha ?? ""}>{shortText(item.nome_planilha)}</td>
                   </tr>
                 ))}
               </tbody>

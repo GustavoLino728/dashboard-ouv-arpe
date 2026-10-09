@@ -6,6 +6,7 @@ export type FiltrosManifestacoes = {
   origem?: string;
   assunto?: string;
   subassunto?: string;
+  situacao?: string;
 };
 
 export type KpiId =
@@ -33,6 +34,20 @@ export function buildManifestacoesUrl(
   });
   const qs = params.toString();
   return qs ? `/manifestacoes?${qs}` : "/manifestacoes";
+}
+
+/**
+ * Gera URL para a tela de manifestações filtrando um mês específico.
+ * Usado pelos gráficos de evolução temporal (variação mês a mês e tipologias).
+ */
+export function buildManifestacoesUrlParaMes(
+  base: FiltrosManifestacoes,
+  anoMes: string
+): string {
+  return buildManifestacoesUrl(base, {
+    ano_mes_inicio: anoMes,
+    ano_mes_fim: anoMes,
+  });
 }
 
 /**
@@ -74,12 +89,28 @@ export function resolverFiltroKpi(
   }
 }
 
+/**
+ * Resolve o `value` de um subassunto a partir de um predicado sobre o label.
+ * Útil quando o backend não expõe um identificador fixo para o subassunto.
+ */
+export function resolverSubassuntoPorLabel(
+  filters: OuvidoriaFilters | null,
+  matcher: (label: string) => boolean
+): string | null {
+  const alvo = filters?.subassuntos?.find((item) =>
+    matcher(item.label?.toLowerCase() ?? "")
+  );
+  return alvo?.value ?? null;
+}
+
+/**
+ * Atalho para o subassunto padrão do dashboard: Call Center Compesa.
+ */
 export function resolverSubassuntoCallCenter(
   filters: OuvidoriaFilters | null
 ): string | null {
-  const alvo = filters?.subassuntos?.find(
-    (item) => item.label?.toLowerCase().includes("call center") &&
-              item.label?.toLowerCase().includes("compesa")
+  return resolverSubassuntoPorLabel(
+    filters,
+    (label) => label.includes("call center") && label.includes("compesa")
   );
-  return alvo?.value ?? null;
 }
