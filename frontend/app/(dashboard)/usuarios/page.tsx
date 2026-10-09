@@ -11,8 +11,6 @@ import {
   ApiUserCreate,
   ApiUserUpdate,
   ApiError,
-  fetchCoordenadorias,
-  ApiCoordenadoria,
 } from "@/lib/api";
 import {
   Users,
@@ -34,7 +32,7 @@ export default function UsuariosPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [searchTerm, setSearchTerm] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,7 +45,6 @@ export default function UsuariosPage() {
   const [role, setRole] = useState<"servidor" | "coordenador" | "admin">("servidor");
   const [department, setDepartment] = useState("");
   const [isActive, setIsActive] = useState(true);
-  const [coordenadorias, setCoordenadorias] = useState<ApiCoordenadoria[]>([]);
 
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -62,7 +59,6 @@ export default function UsuariosPage() {
     }
   }, [feedback]);
 
-  // Load users from API
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -70,7 +66,10 @@ export default function UsuariosPage() {
       setUsers(data);
     } catch (err) {
       console.error("[Usuarios] Erro ao carregar usuários da API", err);
-      const msg = err instanceof ApiError ? err.message : "Erro ao conectar com o servidor para carregar usuários.";
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : "Erro ao conectar com o servidor para carregar usuários.";
       setFeedback({ type: "error", message: msg });
       setUsers([]);
     } finally {
@@ -78,23 +77,12 @@ export default function UsuariosPage() {
     }
   }, []);
 
-  const loadCoordenadorias = useCallback(async () => {
-    try {
-      const data = await fetchCoordenadorias();
-      setCoordenadorias(data);
-    } catch (err) {
-      console.error("[Usuarios] Erro ao carregar responsáveis", err);
-    }
-  }, []);
-
   useEffect(() => {
     if (user?.role === "admin") {
       loadUsers();
-      loadCoordenadorias();
     }
-  }, [user, loadUsers, loadCoordenadorias]);
+  }, [user, loadUsers]);
 
-  // Open modal for creating a new user
   const handleOpenCreate = () => {
     setModalMode("create");
     setSelectedUser(null);
@@ -107,20 +95,18 @@ export default function UsuariosPage() {
     setIsModalOpen(true);
   };
 
-  // Open modal for editing an existing user
   const handleOpenEdit = (targetUser: ApiUser) => {
     setModalMode("edit");
     setSelectedUser(targetUser);
     setName(targetUser.name);
     setEmail(targetUser.email);
-    setPassword(""); // Keep password blank unless changing it
+    setPassword("");
     setRole(targetUser.role);
     setDepartment(targetUser.department || "");
     setIsActive(targetUser.is_active);
     setIsModalOpen(true);
   };
 
-  // Submit User form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -128,12 +114,23 @@ export default function UsuariosPage() {
 
     try {
       if (modalMode === "create") {
-        const payload: ApiUserCreate = { name, email, password, role, department: department || null };
+        const payload: ApiUserCreate = {
+          name,
+          email,
+          password,
+          role,
+          department: department.trim() || null,
+        };
         await createUser(payload);
         setFeedback({ type: "success", message: "Usuário criado com sucesso!" });
       } else {
         if (!selectedUser) return;
-        const payload: ApiUserUpdate = { name, role, is_active: isActive, department: department || null };
+        const payload: ApiUserUpdate = {
+          name,
+          role,
+          is_active: isActive,
+          department: department.trim() || null,
+        };
         if (password) {
           payload.password = password;
         }
@@ -143,19 +140,19 @@ export default function UsuariosPage() {
       setIsModalOpen(false);
       await loadUsers();
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Erro ao salvar alterações do usuário.";
+      const msg =
+        err instanceof ApiError ? err.message : "Erro ao salvar alterações do usuário.";
       setFeedback({ type: "error", message: msg });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Delete User
   const handleDelete = async (targetUser: ApiUser) => {
     if (!confirm(`Deseja realmente remover o usuário ${targetUser.name}?`)) {
       return;
     }
-    
+
     setFeedback(null);
     try {
       await deleteUser(targetUser.id);
@@ -167,7 +164,6 @@ export default function UsuariosPage() {
     }
   };
 
-  // Filtered users by search string
   const filteredUsers = users.filter((u) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -178,7 +174,6 @@ export default function UsuariosPage() {
     );
   });
 
-  // Access check
   if (user?.role !== "admin") {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 max-w-lg mx-auto text-center gap-4 animate-[fadeIn_0.2s_ease-out]">
@@ -197,7 +192,6 @@ export default function UsuariosPage() {
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1100px] animate-[fadeIn_0.2s_ease-out]">
-      {/* Top Header Section */}
       <div className="flex justify-between items-center flex-wrap gap-4 select-none">
         <div>
           <h2 className="font-display font-bold text-[18px] text-ink flex items-center gap-2.5">
@@ -208,7 +202,7 @@ export default function UsuariosPage() {
             Controle de contas, atribuições de cargos e permissões de acesso.
           </p>
         </div>
-        
+
         <button
           onClick={handleOpenCreate}
           className="flex items-center gap-2 font-sans text-[13px] font-semibold text-white bg-teal rounded-lg py-2 px-4 cursor-pointer hover:bg-teal/90 active:scale-[0.98] transition-all duration-150 shadow-sm"
@@ -217,7 +211,6 @@ export default function UsuariosPage() {
         </button>
       </div>
 
-      {/* Feedback Alerts */}
       {feedback && (
         <div
           className={`flex items-center gap-3 border rounded-lg p-3.5 text-[12.5px] leading-normal animate-[fadeIn_0.15s_ease-out] ${
@@ -241,7 +234,6 @@ export default function UsuariosPage() {
         </div>
       )}
 
-      {/* Toolbar - Search */}
       <div className="bg-panel border border-line/30 rounded-custom p-4 flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="w-4 h-4 text-ink-soft absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -254,11 +246,11 @@ export default function UsuariosPage() {
           />
         </div>
         <div className="text-[12px] text-ink-soft select-none">
-          Total: <strong>{filteredUsers.length}</strong> {filteredUsers.length === 1 ? "usuário" : "usuários"}
+          Total: <strong>{filteredUsers.length}</strong>{" "}
+          {filteredUsers.length === 1 ? "usuário" : "usuários"}
         </div>
       </div>
 
-      {/* Main Table Panel */}
       <div className="bg-panel border border-line/30 rounded-custom overflow-hidden shadow-sm">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-ink-soft select-none">
@@ -268,7 +260,9 @@ export default function UsuariosPage() {
         ) : filteredUsers.length === 0 ? (
           <div className="text-center py-20 text-ink-soft select-none flex flex-col items-center gap-1.5">
             <Users className="w-9 h-9 text-line mb-1.5" />
-            <span className="text-[13.5px] font-semibold text-ink">Nenhum usuário encontrado</span>
+            <span className="text-[13.5px] font-semibold text-ink">
+              Nenhum usuário encontrado
+            </span>
             <span className="text-[12px]">Tente redefinir o filtro de pesquisa.</span>
           </div>
         ) : (
@@ -302,13 +296,13 @@ export default function UsuariosPage() {
 
                   return (
                     <tr key={u.id} className="hover:bg-line/10 transition-colors">
-                      <td className="py-3.5 px-5 font-medium text-ink">
-                        {u.name}
-                      </td>
+                      <td className="py-3.5 px-5 font-medium text-ink">{u.name}</td>
                       <td className="py-3.5 px-5 text-ink-soft">{u.email}</td>
                       <td className="py-3.5 px-5 text-ink-soft">{u.department || "—"}</td>
                       <td className="py-3.5 px-5 select-none">
-                        <span className={`inline-block text-[11px] font-semibold rounded-md px-2 py-0.5 uppercase tracking-wide ${roleColor}`}>
+                        <span
+                          className={`inline-block text-[11px] font-semibold rounded-md px-2 py-0.5 uppercase tracking-wide ${roleColor}`}
+                        >
                           {roleLabel}
                         </span>
                       </td>
@@ -336,8 +330,11 @@ export default function UsuariosPage() {
                             onClick={() => handleDelete(u)}
                             className="p-1.5 rounded hover:bg-rose-500/10 text-ink-soft hover:text-rose-500 cursor-pointer transition-colors"
                             title="Excluir usuário"
-                            disabled={user?.id === u.id} // Don't let active user delete themselves
-                            style={{ opacity: user?.id === u.id ? 0.35 : 1, cursor: user?.id === u.id ? "not-allowed" : "pointer" }}
+                            disabled={user?.id === u.id}
+                            style={{
+                              opacity: user?.id === u.id ? 0.35 : 1,
+                              cursor: user?.id === u.id ? "not-allowed" : "pointer",
+                            }}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -352,18 +349,14 @@ export default function UsuariosPage() {
         )}
       </div>
 
-      {/* Creation/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4 animate-[fadeIn_0.15s_ease-out]">
-          {/* Backdrop */}
           <div
             onClick={() => setIsModalOpen(false)}
             className="absolute inset-0 bg-[#000]/40 backdrop-blur-xs transition-opacity"
           />
 
-          {/* Modal Content */}
           <div className="relative bg-panel border border-line rounded-custom max-w-md w-full p-6 shadow-2xl flex flex-col gap-5 overflow-hidden z-10">
-            {/* Header */}
             <div className="flex justify-between items-center">
               <h3 className="font-display font-bold text-[16px] text-ink">
                 {modalMode === "create" ? "Criar Novo Usuário" : "Editar Usuário"}
@@ -376,9 +369,7 @@ export default function UsuariosPage() {
               </button>
             </div>
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {/* Nome */}
               <div className="flex flex-col gap-1.5">
                 <label className="font-sans font-semibold text-[12.5px] text-ink">
                   Nome Completo
@@ -393,7 +384,6 @@ export default function UsuariosPage() {
                 />
               </div>
 
-              {/* Email (Disabled in edit mode) */}
               <div className="flex flex-col gap-1.5">
                 <label className="font-sans font-semibold text-[12.5px] text-ink">
                   E-mail institucional
@@ -409,14 +399,15 @@ export default function UsuariosPage() {
                 />
               </div>
 
-              {/* Cargo / Papel */}
               <div className="flex flex-col gap-1.5">
                 <label className="font-sans font-semibold text-[12.5px] text-ink">
                   Papel de Acesso
                 </label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as any)}
+                  onChange={(e) =>
+                    setRole(e.target.value as "servidor" | "coordenador" | "admin")
+                  }
                   className="font-sans text-[13px] py-2 px-3 rounded-lg border border-line bg-panel text-ink outline-none cursor-pointer focus:border-teal transition-colors w-full"
                 >
                   <option value="servidor">Servidor (Acesso de leitura)</option>
@@ -425,29 +416,28 @@ export default function UsuariosPage() {
                 </select>
               </div>
 
-              {/* Responsável / Setor */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-sans font-semibold text-[12.5px] text-ink">
-                  Responsável / Setor
-                </label>
-                <select
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  className="font-sans text-[13px] py-2 px-3 rounded-lg border border-line bg-panel text-ink outline-none cursor-pointer focus:border-teal transition-colors w-full"
-                >
-                  <option value="">Nenhum / Sem responsável</option>
-                  {coordenadorias.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Senha (Required in create, optional in edit for reset) */}
+              {/* Responsável/Setor: input livre, opcional */}
               <div className="flex flex-col gap-1.5">
                 <label className="font-sans font-semibold text-[12.5px] text-ink flex items-center justify-between">
-                  <span>{modalMode === "create" ? "Senha de acesso" : "Redefinir senha"}</span>
+                  <span>Responsável / Setor</span>
+                  <span className="text-[10px] text-ink-soft font-normal">
+                    (Opcional)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="Ex: Ouvidoria, Atendimento..."
+                  className="font-sans text-[13px] py-2 px-3 rounded-lg border border-line bg-panel text-ink outline-none focus:border-teal transition-colors w-full"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="font-sans font-semibold text-[12.5px] text-ink flex items-center justify-between">
+                  <span>
+                    {modalMode === "create" ? "Senha de acesso" : "Redefinir senha"}
+                  </span>
                   {modalMode === "edit" && (
                     <span className="text-[10px] text-ink-soft normal-case font-normal">
                       (Deixe em branco para manter a atual)
@@ -461,14 +451,17 @@ export default function UsuariosPage() {
                     required={modalMode === "create"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={modalMode === "create" ? "Mínimo de 6 caracteres" : "Nova senha se desejar alterar"}
+                    placeholder={
+                      modalMode === "create"
+                        ? "Mínimo de 6 caracteres"
+                        : "Nova senha se desejar alterar"
+                    }
                     className="font-sans text-[13px] py-2 pl-9 pr-3 rounded-lg border border-line bg-panel text-ink outline-none focus:border-teal transition-colors w-full"
                     minLength={4}
                   />
                 </div>
               </div>
 
-              {/* Ativo Checkbox (only shown in edit) */}
               {modalMode === "edit" && (
                 <div className="border-t border-line/40 pt-3 mt-1">
                   <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -490,7 +483,6 @@ export default function UsuariosPage() {
                 </div>
               )}
 
-              {/* Buttons */}
               <div className="border-t border-line/50 pt-4 mt-2 flex justify-end gap-3 select-none">
                 <button
                   type="button"

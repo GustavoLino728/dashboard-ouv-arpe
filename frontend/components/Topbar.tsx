@@ -31,9 +31,14 @@ export function Topbar() {
       <button
         onClick={toggleTheme}
         aria-label="Alternar tema"
+        suppressHydrationWarning
         className="flex items-center justify-center p-2 rounded-lg text-ink-soft hover:bg-line/10 dark:hover:bg-line/5 hover:text-ink transition-colors cursor-pointer border-none bg-transparent"
       >
-        {theme === "dark" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+        {theme === "dark" ? (
+          <Moon className="w-5 h-5" suppressHydrationWarning />
+        ) : (
+          <Sun className="w-5 h-5" suppressHydrationWarning />
+        )}
       </button>
     </header>
   );
