@@ -345,8 +345,12 @@ export function OuvidoriaDashboard() {
             <KpiTile label={rotuloDestaque} value={numberFmt.format(kpis.total_call_center)} detail="Subassunto destacado" href={hrefCallCenter}/>
             <KpiTile label={`Participacao ${rotuloDestaque}`} value={`${kpis.participacao_call_center}%`} detail="Exclui telefone/endereco da prestadora" tone="danger" />
             <KpiTile label="MoM ultimo mes" value={kpis.variacao_mom_ultimo_mes === null ? "-" : `${kpis.variacao_mom_ultimo_mes}%`} detail="Variacao contra mes anterior" />
-            <KpiTile label="Base comparativa" value={numberFmt.format(state.comparison?.total_considerado ?? 0)} detail="Registros apos regra de exclusao" tooltip="A regra de exclusão desconsidera manifestações do subassunto de informações de telefone/endereço da prestadora de serviço, para que a comparação da participação do subassunto destacado não seja distorcida por esses registros."
-/>
+            <KpiTile
+              label="Base comparativa"
+              value={numberFmt.format(state.comparison?.total_considerado ?? 0)}
+              detail="Registros apos regra de exclusao"
+              tooltip="A regra de exclusão desconsidera manifestações do subassunto de informações de telefone/endereço da prestadora de serviço, para que a comparação da participação do subassunto destacado não seja distorcida por esses registros."
+            />
           </>
         )}
       </section>
@@ -354,9 +358,21 @@ export function OuvidoriaDashboard() {
       <section className="grid grid-cols-[1.7fr_1fr] gap-5 max-xl:grid-cols-1">
         <div className="bg-panel border border-line/30 rounded-custom p-6">
           <h2 className="text-[14px] font-semibold text-ink mb-4">Evolucao mensal</h2>
-          <div className="h-[310px]">
+          <div className="h-[310px] cursor-pointer">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+              <LineChart
+                data={series}
+                margin={{ top: 10, right: 20, left: -20, bottom: 0 }}
+                onClick={(state) => {
+                  if (!state) return;
+                  const mes =
+                    (state.activeLabel as string | undefined) ??
+                    (typeof state.activeTooltipIndex === "number"
+                      ? (series[state.activeTooltipIndex]?.ano_mes as string | undefined)
+                      : undefined);
+                  if (mes) router.push(buildManifestacoesUrlParaMes(filtrosBase, mes));
+                }}
+              >
                 {commonGrid}
                 <XAxis dataKey="ano_mes" tick={axisTick} axisLine={false} tickLine={false} />
                 <YAxis tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />
