@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     postgres_password: str
     postgres_db: str
 
+    test_database_url: str | None = None
+
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:3001"]
 
     # Auth — JWT
