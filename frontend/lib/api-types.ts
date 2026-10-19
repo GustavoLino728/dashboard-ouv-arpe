@@ -10,6 +10,7 @@ export interface OuvidoriaFilters {
   assuntos: OuvidoriaFilterOption[];
   subassuntos: OuvidoriaFilterOption[];
   situacoes: OuvidoriaFilterOption[];
+  tipos_atendimento: OuvidoriaFilterOption[];
 }
 
 export interface OuvidoriaPeakMonth {
