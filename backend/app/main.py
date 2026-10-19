@@ -7,8 +7,8 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.core.exceptions import AppException
 from app.core.middleware import logging_middleware, register_middlewares
-from app.domain.ouvidoria.router import router as ouvidoria_router
 from app.domain.auth.router import router as auth_router
+from app.domain.ouvidoria.router import router as ouvidoria_router
 from app.domain.users.router import router as users_router
 
 
@@ -39,16 +39,21 @@ async def lifespan(app: FastAPI):
         UploadPlanilha,
     )
     from app.domain.ouvidoria.services import ensure_upload_schema
+    from app.domain.users.models import User
+    from seed import seed_admin
 
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
         async with async_session_maker() as session:
             await ensure_upload_schema(session)
+            await seed_admin(session)
             await session.commit()
+
         logger.info("Tabelas verificadas/criadas com sucesso")
     except Exception as exc:
-        logger.error("Erro ao inicializar tabelas do banco: %s", exc)
+        logger.error("Erro ao inicializar banco: %s", exc, exc_info=True)
 
     yield
 
